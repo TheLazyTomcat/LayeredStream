@@ -88,23 +88,28 @@ type
 
   TLSLayerObjectKind = set of TLSLayerObjectBehavior;
 
-  // types used for storage of information about accepted parameters
+{
+  types used to return information about accepted parameters
+}
   TLSLayerObjectParamReceiver = (loprConstructor,loprInitializer);
 
   TLSLayerObjectParamReceivers = set of TLSLayerObjectParamReceiver;
 
   TLSLayerObjectParam = record
-    ParamName:      String;
-    ParamType:      TSNVNamedValueType;
-    ParamReceivers: TLSLayerObjectParamReceivers;
+    Name:        String;
+    ValueType:   TSNVNamedValueType;
+    Receivers:   TLSLayerObjectParamReceivers;
+    Description: String;
   end;
 
   TLSLayerObjectParams = array of TLSLayerObjectParam;
 
-Function LayerObjectParam(const Name: String; aType: TSNVNamedValueType; Receivers: TLSLayerObjectParamReceivers): TLSLayerObjectParam;
+Function LayerObjectParam(const Name: String; ValueType: TSNVNamedValueType; Receivers: TLSLayerObjectParamReceivers; const Description: String): TLSLayerObjectParam;
 
+{
+  connection events
+}
 type
-  // connection events
   TLSLayerObjectSeekConnection = Function(const Offset: Int64; Origin: TSeekOrigin): Int64 of object;
   TLSLayerObjectReadConnection = Function(out Buffer; Size: LongInt): LongInt of object;
   TLSLayerObjectWriteConnection = Function(const Buffer; Size: LongInt): LongInt of object;
@@ -115,11 +120,12 @@ type
 type
   TLSLayerObjectBase = class(TCustomObject)
   protected
-    fCounterpart:     TLSLayerObjectBase;   // the orher object in layer pair
+    fCounterpart:     TLSLayerObjectBase; // the orher object in layer pair
     fSeekConnection:  TLSLayerObjectSeekConnection;
     fActive:          Boolean;
     procedure SetCounterpart(Value: TLSLayerObjectBase); virtual;
     procedure SetActive(Value: Boolean); virtual;
+    Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual; abstract;
     Function SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
     procedure Initialize(Params: TSimpleNamedValues); virtual;
     procedure Finalize; virtual;
@@ -135,9 +141,8 @@ type
     Note that calling Init or Final is not mandatory, they are here only for
     those layer objects that really do need them.
   }
-    procedure Init(Params: TSimpleNamedValues); overload; virtual;  // can be called any time, multiple times
-    procedure Init; overload; virtual;                              // just calls Init(nil)
-    procedure Final; virtual;                                       // -//-
+    procedure Init(Params: TSimpleNamedValues = nil); virtual;  // can be called any time, multiple times
+    procedure Final; virtual;                                   // -//-
     procedure Flush; virtual;
     Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
     property Counterpart: TLSLayerObjectBase read fCounterpart write SetCounterpart;
@@ -159,7 +164,7 @@ type
   TLSLayerReader = class(TLSLayerObjectBase)
   protected
     fReadConnection:  TLSLayerObjectReadConnection;
-    Function ReadProcess(out Buffer; Size: LongInt): LongInt; virtual; abstract;
+    Function ReadActive(out Buffer; Size: LongInt): LongInt; virtual; abstract;
     Function ReadOut(out Buffer; Size: LongInt): LongInt; virtual;
   public
     class Function LayerObjectType: TLSLayerObjectType; override;
@@ -181,7 +186,7 @@ type
   TLSLayerWriter = class(TLSLayerObjectBase)
   protected
     fWriteConnection: TLSLayerObjectWriteConnection;
-    Function WriteProcess(const Buffer; Size: LongInt): LongInt; virtual; abstract;
+    Function WriteActive(const Buffer; Size: LongInt): LongInt; virtual; abstract;
     Function WriteOut(const Buffer; Size: LongInt): LongInt; virtual;
   public
     class Function LayerObjectType: TLSLayerObjectType; override;
@@ -279,10 +284,20 @@ type
     procedure Init; virtual;  // initilizes all layers from first to last
     procedure Final; virtual; // finalizes all layers from last to first
     procedure Flush; virtual; // flushes all layers according to mode (FlushReaders, FlushWriters)
+    {$message 'implement'}
+    //procedure Init(Index: Integer; ReaderParams, WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    //procedure Final(Index: Integer); overload; virtual;
+    //procedure Flush(Index: Integer); overload; virtual;
+    //procedure InitReader(Index: Integer; Params: TSimpleNamedValues = nil); virtual;
+    //procedure InitWriter(Index: Integer; Params: TSimpleNamedValues = nil); virtual;
+    //procedure FinalReader(Index: Integer); virtual;
+    //procedure FinalWriter(Index: Integer); virtual;
+    //procedure FlushReader(Index: Integer);
+    //procedure FlushWriter(Index: Integer);
     // stream methods
+    Function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function Read(var Buffer; Count: LongInt): LongInt; override;
     Function Write(const Buffer; Count: LongInt): LongInt; override;
-    Function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     // properties
     property Mode: TLayeredStreamMode read fMode;
     property Target: TStream read fTarget;
@@ -291,8 +306,7 @@ type
     property Layers[Index: Integer]: TLSLayer read GetLayer; default;
     property LayerNames[Index: Integer]: String read GetLayerName write SetLayerName;
     property LayerActive[Index: Integer]: Boolean read GetLayerActive write SetLayerActive;
-  end;
-
+  end;      
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -306,7 +320,8 @@ type
 type
   TPassthroughReader = class(TLSLayerReader)
   protected
-    Function ReadProcess(out Buffer; Size: LongInt): LongInt; override;
+    Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
   public
     class Function LayerObjectKind: TLSLayerObjectKind; override;
   end;
@@ -322,7 +337,8 @@ type
 type
   TPassthroughWriter = class(TLSLayerWriter)
   protected
-    Function WriteProcess(const Buffer; Size: LongInt): LongInt; override;
+    Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
   public
     class Function LayerObjectKind: TLSLayerObjectKind; override;
   end;
@@ -345,7 +361,8 @@ type
     fCounter:       UInt64;
     fByteCounters:  TStatsPerByte;
   protected
-    Function ReadProcess(out Buffer; Size: LongInt): LongInt; override;
+    Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure ClearStats; virtual;
   public
@@ -371,7 +388,8 @@ type
     fCounter:       UInt64;
     fByteCounters:  TStatsPerByte;
   protected
-    Function WriteProcess(const Buffer; Size: LongInt): LongInt; override;
+    Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure ClearStats; virtual;
   public
@@ -397,13 +415,13 @@ type
     fSize:    LongInt;
     fUsed:    LongInt;
   protected
-    Function ReadProcess(out Buffer; Size: LongInt): LongInt; override;
+    Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
   public
     class Function LayerObjectKind: TLSLayerObjectKind; override;
-    procedure Init(Params: TSimpleNamedValues); overload; override;
-    procedure Final; override;
+    //class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Flush; override;
     property Memory: Pointer read fMemory;
     property Size: LongInt read fSize;
@@ -415,35 +433,35 @@ type
                                   TBufferWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
-type
-  ELSBufferedWriteError = class(ELSException);
-
 {===============================================================================
     TBufferWriter - class declaration
 ===============================================================================}
 type
   TBufferWriter = class(TLSLayerWriter)
   private
-    fSilentFail:  Boolean;
-    fMemory:      Pointer;
-    fSize:        LongInt;
-    fUsed:        LongInt;
+    fAllowPartialWrites:  Boolean;
+    fMemory:              Pointer;
+    fSize:                LongInt;
+    fUsed:                LongInt;
   protected
-    Function WriteProcess(const Buffer; Size: LongInt): LongInt; override;
+    Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
+    Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
   public
     class Function LayerObjectKind: TLSLayerObjectKind; override;
-    procedure Init(Params: TSimpleNamedValues); overload; override;
-    procedure Final; override;
+    class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Flush; override;
-    property SilentFail: Boolean read fSilentFail write fSilentFail;
+    property AllowPartialWrites: Boolean read fAllowPartialWrites write fAllowPartialWrites;
     property Memory: Pointer read fMemory;
     property Size: LongInt read fSize;
     property Used: LongInt read fUsed;
   end;
 
 implementation
+
+uses
+  Math;
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -454,11 +472,12 @@ implementation
     TLSLayerObjectBase - Auxiliary functions
 ===============================================================================}
 
-Function LayerObjectParam(const Name: String; aType: TSNVNamedValueType; Receivers: TLSLayerObjectParamReceivers): TLSLayerObjectParam;
+Function LayerObjectParam(const Name: String; ValueType: TSNVNamedValueType; Receivers: TLSLayerObjectParamReceivers; const Description: String): TLSLayerObjectParam;
 begin
-Result.ParamName := Name;
-Result.ParamType := aType;
-Result.ParamReceivers := Receivers;
+Result.Name := Name;
+Result.ValueType := ValueType;
+Result.Receivers := Receivers;
+Result.Description := Description;
 end;
 
 {===============================================================================
@@ -567,23 +586,16 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TLSLayerObjectBase.Init(Params: TSimpleNamedValues);
+procedure TLSLayerObjectBase.Init(Params: TSimpleNamedValues = nil);
 begin
 // nothing to do
-end;
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-procedure TLSLayerObjectBase.Init;
-begin
-Init(nil);
 end;
 
 //------------------------------------------------------------------------------
 
 procedure TLSLayerObjectBase.Final;
 begin
-Flush;
+// nothing to do
 end;
 
 //------------------------------------------------------------------------------
@@ -597,7 +609,10 @@ end;
 
 Function TLSLayerObjectBase.SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
-Result := SeekOut(Offset,Origin);
+If fActive then
+  Result := SeekActive(Offset,Origin)
+else
+  Result := SeekOut(Offset,Origin);
 end;
 
 {===============================================================================
@@ -635,7 +650,7 @@ end;
 Function TLSLayerReader.ReadIn(out Buffer; Size: LongInt): LongInt;
 begin
 If fActive then
-  Result := ReadProcess(Buffer,Size)
+  Result := ReadActive(Buffer,Size)
 else
   Result := ReadOut(Buffer,Size);
 end;
@@ -675,7 +690,7 @@ end;
 Function TLSLayerWriter.WriteIn(const Buffer; Size: LongInt): LongInt;
 begin
 If fActive then
-  Result := WriteProcess(Buffer,Size)
+  Result := WriteActive(Buffer,Size)
 else
   Result := WriteOut(Buffer,Size);
 end;
@@ -1248,7 +1263,7 @@ procedure TLayeredStream.Final;
 var
   i:  Integer;
 begin
-For i := LowIndex to HighIndex do
+For i := HighIndex downto LowIndex do
   begin
     fLayers[i].Reader.Final;
     fLayers[i].Writer.Final;
@@ -1270,6 +1285,13 @@ end;
 
 //------------------------------------------------------------------------------
 
+Function TLayeredStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Result := SeekIn(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
 Function TLayeredStream.Read(var Buffer; Count: LongInt): LongInt;
 begin
 Result := ReadIn(Buffer,Count);
@@ -1280,13 +1302,6 @@ end;
 Function TLayeredStream.Write(const Buffer; Count: LongInt): LongInt;
 begin
 Result := WriteIn(Buffer,Count);
-end;
-
-//------------------------------------------------------------------------------
-
-Function TLayeredStream.Seek(const Offset: Int64; Origin: TSeekOrigin): Int64;
-begin
-Result := SeekIn(Offset,Origin);
 end;
 
 
@@ -1302,7 +1317,14 @@ end;
     TPassthroughReader - protected methods
 -------------------------------------------------------------------------------}
 
-Function TPassthroughReader.ReadProcess(out Buffer; Size: LongInt): LongInt;
+Function TPassthroughReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Result := SeekOut(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TPassthroughReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 begin
 Result := ReadOut(Buffer,Size);
 end;
@@ -1319,7 +1341,7 @@ end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                               TPassthroughWriter                                                             
+                               TPassthroughWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
@@ -1329,7 +1351,14 @@ end;
     TPassthroughWriter - protected methods
 -------------------------------------------------------------------------------}
 
-Function TPassthroughWriter.WriteProcess(const Buffer; Size: LongInt): LongInt;
+Function TPassthroughWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Result := SeekOut(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TPassthroughWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 begin
 Result := WriteOut(Buffer,Size);
 end;
@@ -1355,7 +1384,14 @@ end;
     TStatReader - protected methods
 -------------------------------------------------------------------------------}
 
-Function TStatReader.ReadProcess(out Buffer; Size: LongInt): LongInt;
+Function TStatReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Result := SeekOut(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TStatReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 var
   BuffPtr:  PByte;
   i:        Integer;
@@ -1382,8 +1418,8 @@ inherited;
 fFullStats := False;
 ClearStats;
 If Assigned(Params) then
-  If Params.Exists('FullStats',nvtBool) then
-    fFullStats := Params.BoolValue['FullStats'];
+  If Params.Exists('TStatReader.FullStats',nvtBool) then
+    fFullStats := Params.BoolValue['TStatReader.FullStats'];
 end;
 
 //------------------------------------------------------------------------------
@@ -1408,21 +1444,21 @@ end;
 class Function TStatReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('FullStats',nvtBool,[loprConstructor,loprInitializer]);
-Result[1] := LayerObjectParam('ClearStats',nvtBool,[loprInitializer]);
+Result[0] := LayerObjectParam('TStatReader.FullStats',nvtBool,[loprConstructor,loprInitializer],'Observe all statistics');
+Result[1] := LayerObjectParam('TStatReader.KeepStats',nvtBool,[loprInitializer],'Keep current statistics');
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TStatReader.Init(Params: TSimpleNamedValues); 
+procedure TStatReader.Init(Params: TSimpleNamedValues);
 begin
 inherited;
 If Assigned(Params) then
   begin
-    If Params.Exists('FullStats',nvtBool) then
-      fFullStats := Params.BoolValue['FullStats'];
-    If Params.Exists('ClearStats',nvtBool) then
-      If Params.BoolValue['ClearStats'] then
+    If Params.Exists('TStatReader.FullStats',nvtBool) then
+      fFullStats := Params.BoolValue['TStatReader.FullStats'];
+    If Params.Exists('TStatReader.KeepStats',nvtBool) then
+      If not Params.BoolValue['TStatReader.KeepStats'] then
         ClearStats;
   end
 else ClearStats;
@@ -1441,7 +1477,14 @@ end;
     TStatWriter - protected methods
 -------------------------------------------------------------------------------}
 
-Function TStatWriter.WriteProcess(const Buffer; Size: LongInt): LongInt;
+Function TStatWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Result := SeekOut(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TStatWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 var
   BuffPtr:  PByte;
   i:        Integer;
@@ -1468,8 +1511,8 @@ inherited;
 fFullStats := False;
 ClearStats;
 If Assigned(Params) then
-  If Params.Exists('FullStats',nvtBool) then
-    fFullStats := Params.BoolValue['FullStats'];
+  If Params.Exists('TStatWriter.FullStats',nvtBool) then
+    fFullStats := Params.BoolValue['TStatWriter.FullStats'];
 end;
 
 //------------------------------------------------------------------------------
@@ -1494,8 +1537,8 @@ end;
 class Function TStatWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('FullStats',nvtBool,[loprConstructor,loprInitializer]);
-Result[1] := LayerObjectParam('ClearStats',nvtBool,[loprInitializer]);
+Result[0] := LayerObjectParam('TStatWriter.FullStats',nvtBool,[loprConstructor,loprInitializer],'Observe all statistics');
+Result[1] := LayerObjectParam('TStatWriter.KeepStats',nvtBool,[loprInitializer],'Keep current statistics');
 end;
 
 //------------------------------------------------------------------------------
@@ -1505,10 +1548,10 @@ begin
 inherited;
 If Assigned(Params) then
   begin
-    If Params.Exists('FullStats',nvtBool) then
-      fFullStats := Params.BoolValue['FullStats'];
-    If Params.Exists('ClearStats',nvtBool) then
-      If Params.BoolValue['ClearStats'] then
+    If Params.Exists('TStatWriter.FullStats',nvtBool) then
+      fFullStats := Params.BoolValue['TStatWriter.FullStats'];
+    If Params.Exists('TStatWriter.KeepStats',nvtBool) then
+      If not Params.BoolValue['TStatWriter.KeepStats'] then
         ClearStats;
   end
 else ClearStats;
@@ -1530,7 +1573,15 @@ const
     TBufferReader - protected methods
 -------------------------------------------------------------------------------}
 
-Function TBufferReader.ReadProcess(out Buffer; Size: LongInt): LongInt;
+Function TBufferReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Flush;
+Result := SeekOut(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TBufferReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 begin
 {$message 'implement'}
 end;
@@ -1540,15 +1591,10 @@ end;
 procedure TBufferReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-//fSilentFail := True;
 fSize := LS_BUFFERREADER_BUFFERSIZE;
 If Assigned(Params) then
-  begin
-    If Params.Exists('BufferSize',nvtInteger) then
-      fSize := LongInt(Params.IntegerValue['BufferSize']);
-    //If Params.Exists('SilentFail',nvtBool) then
-    //  fSilentFail := Params.BoolValue['SilentFail'];
-  end;
+  If Params.Exists('TBufferReader.Size',nvtInteger) then
+    fSize := LongInt(Params.IntegerValue['TBufferReader.Size']);
 GetMem(fMemory,fSize);
 fUsed := 0;
 end;
@@ -1572,27 +1618,15 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TBufferReader.Init(Params: TSimpleNamedValues);
-begin
-inherited;
-Flush;
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TBufferReader.Final;
-begin
-Flush;
-inherited;
-end;
-
-//------------------------------------------------------------------------------
-
 procedure TBufferReader.Flush;
 begin
 inherited;
-{$message 'implement'}
+// discard everything still in the buffer and seek back the buffered amount
+If fActive and (fUsed > 0) then
+  SeekOut(-fUsed,soCurrent);
+fUsed := 0;
 end;
+
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -1609,14 +1643,22 @@ const
     TBufferWriter - protected methods
 -------------------------------------------------------------------------------}
 
-Function TBufferWriter.WriteProcess(const Buffer; Size: LongInt): LongInt;
+Function TBufferWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Flush;
+Result := SeekOut(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TBufferWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 var
   Written:  LongInt;
 begin
 If Size <= (fSize - fUsed) then
   begin
   {
-    data will fit free space in the buffer - store them
+    data will fit free space in the buffer - just store them
   }
     Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
     fUsed := fUsed + Size;
@@ -1625,8 +1667,8 @@ If Size <= (fSize - fUsed) then
 else If Size < fSize then
   begin
   {
-    data won't fit free space, but are smaller than allocated buffer - write out
-    what is currently in the buffer and store new data into buffer
+    data won't fit free space, but are smaller than allocated buffer - try write
+    out what is currently in the buffer and store new data into buffer
   }
     If fUsed > 0 then
       begin
@@ -1634,14 +1676,32 @@ else If Size < fSize then
         Written := WriteOut(fMemory^,fUsed);
         If Written < fUsed then
           begin
-            // only part of the buffered data were written
+            // only part of the buffered data were written, buffer at least part of new data
             Move(Pointer(PtrUInt(fMemory) + PtrUInt(Written))^,fMemory^,fUsed - Written);
             fUsed := fUsed - Written;
-            Result := 0;
+            If Size <= (fSize - fUsed) then
+              begin
+                // whole new data will now fit into free space
+                Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
+                fUsed := fUsed + Size;
+                Result := Size;
+              end
+            else
+              begin
+                // only part of the new data can fit
+                If fAllowPartialWrites then
+                  begin
+                    // store the part that can fit
+                    Result := Min(fSize - fUsed,Size);
+                    Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Result);
+                    fUsed := fUsed + Result;
+                  end
+                else Result := 0; // partial write is not allowed, don't write anything
+              end;
           end
         else
           begin
-            // all buffered data were written
+            // all buffered data were written, buffer new data
             Move(Buffer,fMemory^,Size);
             fUsed := Size;
             Result := Size;
@@ -1649,7 +1709,7 @@ else If Size < fSize then
       end
     else
       begin
-        // nothing is stored
+        // nothing is buffered (this should never occur here, but whatever...)
         Move(Buffer,fMemory^,Size);
         fUsed := Size;
         Result := Size;
@@ -1659,17 +1719,25 @@ else
   begin
   {
     data won't fit free space and are larger than allocated buffer - write out
-    buffer and pass the new data unchanged
+    buffer and pass the new data unchanged or buffer part of them, depending on
+    settings
   }
     If fUsed > 0 then
       begin
         Written := WriteOut(fMemory^,fUsed);
         If Written < fUsed then
           begin
-            // only part of the buffered data were written, do not attempt to write any new data
+            // only part of the buffered data were written
             Move(Pointer(PtrUInt(fMemory) + PtrUInt(Written))^,fMemory^,fUsed - Written);
             fUsed := fUsed - Written;
-            Result := 0;
+            If fAllowPartialWrites then
+              begin
+                // buffer part of new data
+                Result := fSize - fUsed;
+                Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Result);
+                fUsed := fSize;
+              end
+            else Result := 0;
           end
         else
           begin
@@ -1680,6 +1748,17 @@ else
       end
     else Result := WriteOut(Buffer,Size);
   end;
+// if the buffer is full, try to flush it
+If fUsed >= fSize then
+  begin
+    Written := WriteOut(fMemory^,fSize);
+    If Written < fSize then
+      begin
+        Move(Pointer(PtrUInt(fMemory) + PtrUInt(Written))^,fMemory^,fSize - Written);
+        fUsed := fSize - Written;
+      end
+    else fUsed := 0
+  end;
 end;
 
 //------------------------------------------------------------------------------
@@ -1687,14 +1766,14 @@ end;
 procedure TBufferWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fSilentFail := True;
+fAllowPartialWrites := False;
 fSize := LS_BUFFERWRITER_BUFFERSIZE;
 If Assigned(Params) then
   begin
-    If Params.Exists('BufferSize',nvtInteger) then
-      fSize := LongInt(Params.IntegerValue['BufferSize']);
-    If Params.Exists('SilentFail',nvtBool) then
-      fSilentFail := Params.BoolValue['SilentFail'];
+    If Params.Exists('TBufferWriter.Size',nvtInteger) then
+      fSize := LongInt(Params.IntegerValue['TBufferWriter.Size']);
+    If Params.Exists('TBufferWriter.AllowPartialWrites',nvtBool) then
+      fAllowPartialWrites := Params.BoolValue['TBufferWriter.AllowPartialWrites'];
   end;
 GetMem(fMemory,fSize);
 fUsed := 0;
@@ -1719,18 +1798,11 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TBufferWriter.Init(Params: TSimpleNamedValues);
+class Function TBufferWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
-inherited;
-Flush;
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TBufferWriter.Final;
-begin
-Flush;
-inherited;
+SetLength(Result,2);
+Result[0] := LayerObjectParam('TBufferWriter.Size',nvtInteger,[loprConstructor],'Size of the memory buffer');
+Result[1] := LayerObjectParam('TBufferWriter.AllowPartialWrites',nvtInteger,[loprConstructor],'Enables partial data writing');
 end;
 
 //------------------------------------------------------------------------------
@@ -1739,10 +1811,8 @@ procedure TBufferWriter.Flush;
 begin
 inherited;
 If fActive and (fUsed > 0) then
-  begin
-    If (WriteOut(fMemory^,fUsed) <> fUsed) and not fSilentFail then
-      raise ELSBufferedWriteError.Create('TBufferWriter.Flush: Failed to write all buffered data.');
-  end;
+  If WriteOut(fMemory^,fUsed) <> fUsed then
+    raise EWriteError.Create('TBufferWriter.Flush: Failed to flush all buffered data.');
 fUsed := 0;
 end;
 
