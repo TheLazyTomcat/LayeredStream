@@ -6,8 +6,6 @@ unit LayeredStream;
 {$ENDIF}
 {$H+}
 
-{$message 'add ConnectedBuffer(Writer/Reader)'}
-
 interface
 
 uses

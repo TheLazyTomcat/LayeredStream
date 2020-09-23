@@ -101,7 +101,6 @@ Function TBufferReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 var
   BytesRead:  LongInt;
 begin
-{$message 'implement'}
 // if buffer is empty, fill it
 If fUsed <= 0 then
   begin
@@ -132,44 +131,20 @@ else If Size <= fSize then
     fOffset := 0;
     If (Size - fUsed) <= (fSize shr 1) then
       begin
-        // remaining required size is smaller or equal than 1/2 of buffer
+        // remaining required size is smaller or equal than 1/2 of the buffer
         BytesRead := ReadOut(fMemory^,fSize);
-        Move(fMemory^,Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,Min(BytesRead,Size - fUsed));
-
-        //fOffset := fUsed -
+        fOffset := Min(BytesRead,Size - fUsed);
+        Move(fMemory^,Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,fOffset);
+        Result := fUsed + fOffset;
+        fUsed := BytesRead - fOffset;
       end
     else
       begin
-        // remaining required size is larger than 1/2 of buffer
+        // remaining required size is larger than 1/2 of the buffer
         BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,Size - fUsed);
         Result := fUsed + BytesRead;
         fUsed := 0;
       end;
-
-    {$message 'change'}
-    (*
-    If fUsed <> 0 then
-      Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,fMemory^,fUsed);
-    fOffset := 0;
-    BytesRead := ReadOut(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,fSize - fUsed);
-    fUsed := fUsed + BytesRead;
-    If fUsed < Size then
-      begin
-        // buffer does not contain enough data for read
-        Move(fMemory^,Buffer,fUsed);
-        fUsed := 0;
-        fOffset := 0;
-        Result := fUsed;
-      end
-    else
-      begin
-        // buffer contains enough data for read
-        Move(fMemory^,Buffer,Size);
-        fUsed := fUsed - Size;
-        fOffset := Size;
-        Result := Size;
-      end;
-    *)  
   end
 else
   begin
@@ -373,7 +348,7 @@ end;
 procedure TBufferWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fAllowPartialWrites := False;
+fAllowPartialWrites := False; {$message 'remove partial writes?'}
 fSize := LS_BUFFERWRITER_BUFFERSIZE;
 If Assigned(Params) then
   begin
