@@ -1,5 +1,8 @@
 unit LayeredStream;
 
+{$message 'add ConnectedBufferWriter/Reader'}
+{$message 'separate implemented layers into units'}
+
 interface
 
 uses
@@ -414,6 +417,7 @@ type
     fMemory:  Pointer;
     fSize:    LongInt;
     fUsed:    LongInt;
+    fOffset:  LongInt;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
@@ -421,7 +425,7 @@ type
     procedure Finalize; override;
   public
     class Function LayerObjectKind: TLSLayerObjectKind; override;
-    //class Function LayerObjectParams: TLSLayerObjectParams; override;
+    class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Flush; override;
     property Memory: Pointer read fMemory;
     property Size: LongInt read fSize;
@@ -1582,8 +1586,92 @@ end;
 //------------------------------------------------------------------------------
 
 Function TBufferReader.ReadActive(out Buffer; Size: LongInt): LongInt;
+var
+  BytesRead:  LongInt;
 begin
 {$message 'implement'}
+// if buffer is empty, fill it
+If fUsed <= 0 then
+  begin
+    fUsed := ReadOut(fMemory^,fSize);
+    fOffset := 0;
+  end;
+// now for the fun stuff...
+If Size <= fUsed then
+  begin
+  {
+    all required data are buffered
+  }
+    Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,Size);
+    fUsed := fUsed - Size;
+    If fUsed <> 0 then
+      fOffset := fOffset + Size
+    else
+      fOffset := 0;
+    Result := Size;
+  end
+else If Size <= fSize then
+  begin
+  {
+    not all required data are buffered, but can all fit into allocated buffer
+  }
+    If fUsed <> 0 then
+      Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,fUsed);
+    fOffset := 0;
+    If (Size - fUsed) <= (fSize shr 1) then
+      begin
+        // remaining required size is smaller or equal than 1/2 of buffer
+        BytesRead := ReadOut(fMemory^,fSize);
+        Move(fMemory^,Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,Min(BytesRead,Size - fUsed));
+
+        //fOffset := fUsed -
+      end
+    else
+      begin
+        // remaining required size is larger than 1/2 of buffer
+        BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,Size - fUsed);
+        Result := fUsed + BytesRead;
+        fUsed := 0;
+      end;
+
+    {$message 'change'}
+    (*
+    If fUsed <> 0 then
+      Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,fMemory^,fUsed);
+    fOffset := 0;
+    BytesRead := ReadOut(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,fSize - fUsed);
+    fUsed := fUsed + BytesRead;
+    If fUsed < Size then
+      begin
+        // buffer does not contain enough data for read
+        Move(fMemory^,Buffer,fUsed);
+        fUsed := 0;
+        fOffset := 0;
+        Result := fUsed;
+      end
+    else
+      begin
+        // buffer contains enough data for read
+        Move(fMemory^,Buffer,Size);
+        fUsed := fUsed - Size;
+        fOffset := Size;
+        Result := Size;
+      end;
+    *)  
+  end
+else
+  begin
+  {
+    required data not buffered and required size is larger than size of the
+    allocated buffer
+  }
+    If fUsed <> 0 then
+      Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,fUsed);
+    BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,Size - fUsed);
+    Result := BytesRead + fUsed;
+    fUsed := 0;
+    fOffset := 0;
+  end;
 end;
 
 //------------------------------------------------------------------------------
@@ -1597,6 +1685,7 @@ If Assigned(Params) then
     fSize := LongInt(Params.IntegerValue['TBufferReader.Size']);
 GetMem(fMemory,fSize);
 fUsed := 0;
+fOffset := 0;
 end;
 
 //------------------------------------------------------------------------------
@@ -1618,6 +1707,14 @@ end;
 
 //------------------------------------------------------------------------------
 
+class Function TBufferReader.LayerObjectParams: TLSLayerObjectParams;
+begin
+SetLength(Result,1);
+Result[0] := LayerObjectParam('TBufferReader.Size',nvtInteger,[loprConstructor],'Size of the memory buffer');
+end;
+
+//------------------------------------------------------------------------------
+
 procedure TBufferReader.Flush;
 begin
 inherited;
@@ -1625,6 +1722,7 @@ inherited;
 If fActive and (fUsed > 0) then
   SeekOut(-fUsed,soCurrent);
 fUsed := 0;
+fOffset := 0;
 end;
 
 
@@ -1653,12 +1751,12 @@ end;
 
 Function TBufferWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 var
-  Written:  LongInt;
+  BytesWritten: LongInt;
 begin
 If Size <= (fSize - fUsed) then
   begin
   {
-    data will fit free space in the buffer - just store them
+    data will fit free space in the buffer
   }
     Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
     fUsed := fUsed + Size;
@@ -1667,18 +1765,17 @@ If Size <= (fSize - fUsed) then
 else If Size < fSize then
   begin
   {
-    data won't fit free space, but are smaller than allocated buffer - try write
-    out what is currently in the buffer and store new data into buffer
+    data won't fit free space, but are smaller than allocated buffer
   }
     If fUsed > 0 then
       begin
         // some data are buffered
-        Written := WriteOut(fMemory^,fUsed);
-        If Written < fUsed then
+        BytesWritten := WriteOut(fMemory^,fUsed);
+        If BytesWritten < fUsed then
           begin
-            // only part of the buffered data were written, buffer at least part of new data
-            Move(Pointer(PtrUInt(fMemory) + PtrUInt(Written))^,fMemory^,fUsed - Written);
-            fUsed := fUsed - Written;
+            // only part of the buffered data was written, buffer at least part of new data
+            Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fUsed - BytesWritten);
+            fUsed := fUsed - BytesWritten;
             If Size <= (fSize - fUsed) then
               begin
                 // whole new data will now fit into free space
@@ -1718,18 +1815,16 @@ else If Size < fSize then
 else
   begin
   {
-    data won't fit free space and are larger than allocated buffer - write out
-    buffer and pass the new data unchanged or buffer part of them, depending on
-    settings
+    data won't fit free space and are larger than allocated buffer
   }
     If fUsed > 0 then
       begin
-        Written := WriteOut(fMemory^,fUsed);
-        If Written < fUsed then
+        BytesWritten := WriteOut(fMemory^,fUsed);
+        If BytesWritten < fUsed then
           begin
-            // only part of the buffered data were written
-            Move(Pointer(PtrUInt(fMemory) + PtrUInt(Written))^,fMemory^,fUsed - Written);
-            fUsed := fUsed - Written;
+            // only part of the buffered data was written
+            Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fUsed - BytesWritten);
+            fUsed := fUsed - BytesWritten;
             If fAllowPartialWrites then
               begin
                 // buffer part of new data
@@ -1751,11 +1846,11 @@ else
 // if the buffer is full, try to flush it
 If fUsed >= fSize then
   begin
-    Written := WriteOut(fMemory^,fSize);
-    If Written < fSize then
+    BytesWritten := WriteOut(fMemory^,fSize);
+    If BytesWritten < fSize then
       begin
-        Move(Pointer(PtrUInt(fMemory) + PtrUInt(Written))^,fMemory^,fSize - Written);
-        fUsed := fSize - Written;
+        Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fSize - BytesWritten);
+        fUsed := fSize - BytesWritten;
       end
     else fUsed := 0
   end;
