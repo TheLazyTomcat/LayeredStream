@@ -49,10 +49,9 @@ type
 type
   TBufferWriter = class(TLSLayerWriter)
   private
-    fAllowPartialWrites:  Boolean;
-    fMemory:              Pointer;
-    fSize:                LongInt;
-    fUsed:                LongInt;
+    fMemory:  Pointer;
+    fSize:    LongInt;
+    fUsed:    LongInt;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
@@ -62,7 +61,6 @@ type
     class Function LayerObjectKind: TLSLayerObjectKind; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Flush; override;
-    property AllowPartialWrites: Boolean read fAllowPartialWrites write fAllowPartialWrites;
     property Memory: Pointer read fMemory;
     property Size: LongInt read fSize;
     property Used: LongInt read fUsed;
@@ -273,14 +271,9 @@ else If Size < fSize then
             else
               begin
                 // only part of the new data can fit
-                If fAllowPartialWrites then
-                  begin
-                    // store the part that can fit
-                    Result := Min(fSize - fUsed,Size);
-                    Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Result);
-                    fUsed := fUsed + Result;
-                  end
-                else Result := 0; // partial write is not allowed, don't write anything
+                Result := Min(fSize - fUsed,Size);
+                Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Result);
+                fUsed := fUsed + Result;
               end;
           end
         else
@@ -312,14 +305,11 @@ else
             // only part of the buffered data was written
             Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fUsed - BytesWritten);
             fUsed := fUsed - BytesWritten;
-            If fAllowPartialWrites then
-              begin
-                // buffer part of new data
-                Result := fSize - fUsed;
-                Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Result);
-                fUsed := fSize;
-              end
-            else Result := 0;
+            {$message 'revisit'}
+            // buffer part of new data
+            Result := fSize - fUsed;
+            Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Result);
+            fUsed := fSize;
           end
         else
           begin
@@ -348,15 +338,10 @@ end;
 procedure TBufferWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fAllowPartialWrites := False; {$message 'remove partial writes?'}
 fSize := LS_BUFFERWRITER_BUFFERSIZE;
 If Assigned(Params) then
-  begin
-    If Params.Exists('TBufferWriter.Size',nvtInteger) then
-      fSize := LongInt(Params.IntegerValue['TBufferWriter.Size']);
-    If Params.Exists('TBufferWriter.AllowPartialWrites',nvtBool) then
-      fAllowPartialWrites := Params.BoolValue['TBufferWriter.AllowPartialWrites'];
-  end;
+  If Params.Exists('TBufferWriter.Size',nvtInteger) then
+    fSize := LongInt(Params.IntegerValue['TBufferWriter.Size']);
 GetMem(fMemory,fSize);
 fUsed := 0;
 end;
@@ -382,9 +367,8 @@ end;
 
 class Function TBufferWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
-SetLength(Result,2);
+SetLength(Result,1);
 Result[0] := LayerObjectParam('TBufferWriter.Size',nvtInteger,[loprConstructor],'Size of the memory buffer');
-Result[1] := LayerObjectParam('TBufferWriter.AllowPartialWrites',nvtInteger,[loprConstructor],'Enables partial data writing');
 end;
 
 //------------------------------------------------------------------------------
