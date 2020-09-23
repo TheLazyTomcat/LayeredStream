@@ -1,6 +1,12 @@
 unit LayeredStream;
 
-{$message 'add ConnectedBufferWriter/Reader'}
+{$IFDEF FPC}
+  {$MODE ObjFPC}
+{$ELSE}
+{$ENDIF}
+{$H+}
+
+{$message 'add ConnectedBuffer(Writer/Reader)'}
 
 interface
 

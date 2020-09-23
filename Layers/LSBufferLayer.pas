@@ -1,4 +1,6 @@
-unit LayeredStream_BufferLayer;
+unit LSBufferLayer;
+
+{$message 'add ConnectedBuffer(Writer/Reader)'}
 
 interface
 
