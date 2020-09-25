@@ -1,4 +1,4 @@
-unit LSStatsLayer;
+unit LSStatLayer;
 
 interface
 
@@ -9,17 +9,17 @@ uses
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                                   TStatReader
+                                TStatLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 type
   TStatsPerByte = array[Byte] of UInt64;
 
 {===============================================================================
-    TStatReader - class declaration
+    TStatLayerReader - class declaration
 ===============================================================================}
 type
-  TStatReader = class(TLSLayerReader)
+  TStatLayerReader = class(TLSLayerReader)
   private
     fFullStats:     Boolean;
     fCounter:       UInt64;
@@ -39,14 +39,14 @@ type
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                                   TStatWriter
+                                TStatLayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TStatWriter - class declaration
+    TStatLayerWriter - class declaration
 ===============================================================================}
 type
-  TStatWriter = class(TLSLayerWriter)
+  TStatLayerWriter = class(TLSLayerWriter)
   private
     fFullStats:     Boolean;
     fCounter:       UInt64;
@@ -68,24 +68,24 @@ implementation
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                                   TStatReader
+                                TStatLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TStatReader - class implementation
+    TStatLayerReader - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TStatReader - protected methods
+    TStatLayerReader - protected methods
 -------------------------------------------------------------------------------}
 
-Function TStatReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+Function TStatLayerReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Result := SeekOut(Offset,Origin);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TStatReader.ReadActive(out Buffer; Size: LongInt): LongInt;
+Function TStatLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 var
   BuffPtr:  PByte;
   i:        Integer;
@@ -106,53 +106,53 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TStatReader.Initialize(Params: TSimpleNamedValues);
+procedure TStatLayerReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
 fFullStats := False;
 ClearStats;
 If Assigned(Params) then
-  If Params.Exists('TStatReader.FullStats',nvtBool) then
-    fFullStats := Params.BoolValue['TStatReader.FullStats'];
+  If Params.Exists('TStatLayerReader.FullStats',nvtBool) then
+    fFullStats := Params.BoolValue['TStatLayerReader.FullStats'];
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TStatReader.ClearStats;
+procedure TStatLayerReader.ClearStats;
 begin
 fCounter := 0;
 FillChar(fByteCounters,SizeOf(TStatsPerByte),0);
 end;
 
 {-------------------------------------------------------------------------------
-    TStatReader - public methods
+    TStatLayerReader - public methods
 -------------------------------------------------------------------------------}
 
-class Function TStatReader.LayerObjectKind: TLSLayerObjectKind;
+class Function TStatLayerReader.LayerObjectKind: TLSLayerObjectKind;
 begin
 Result := [lobPassthrough,lobObserver];
 end;
 
 //------------------------------------------------------------------------------
 
-class Function TStatReader.LayerObjectParams: TLSLayerObjectParams;
+class Function TStatLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('TStatReader.FullStats',nvtBool,[loprConstructor,loprInitializer],'Observe all statistics');
-Result[1] := LayerObjectParam('TStatReader.KeepStats',nvtBool,[loprInitializer],'Keep current statistics');
+Result[0] := LayerObjectParam('TStatLayerReader.FullStats',nvtBool,[loprConstructor,loprInitializer],'Observe all statistics');
+Result[1] := LayerObjectParam('TStatLayerReader.KeepStats',nvtBool,[loprInitializer],'Keep current statistics');
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TStatReader.Init(Params: TSimpleNamedValues);
+procedure TStatLayerReader.Init(Params: TSimpleNamedValues);
 begin
 inherited;
 If Assigned(Params) then
   begin
-    If Params.Exists('TStatReader.FullStats',nvtBool) then
-      fFullStats := Params.BoolValue['TStatReader.FullStats'];
-    If Params.Exists('TStatReader.KeepStats',nvtBool) then
-      If not Params.BoolValue['TStatReader.KeepStats'] then
+    If Params.Exists('TStatLayerReader.FullStats',nvtBool) then
+      fFullStats := Params.BoolValue['TStatLayerReader.FullStats'];
+    If Params.Exists('TStatLayerReader.KeepStats',nvtBool) then
+      If not Params.BoolValue['TStatLayerReader.KeepStats'] then
         ClearStats;
   end
 else ClearStats;
@@ -161,24 +161,24 @@ end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                                   TStatWriter
+                                TStatLayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TStatWriter - class implementation
+    TStatLayerWriter - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TStatWriter - protected methods
+    TStatLayerWriter - protected methods
 -------------------------------------------------------------------------------}
 
-Function TStatWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+Function TStatLayerWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Result := SeekOut(Offset,Origin);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TStatWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
+Function TStatLayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 var
   BuffPtr:  PByte;
   i:        Integer;
@@ -199,53 +199,53 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TStatWriter.Initialize(Params: TSimpleNamedValues);
+procedure TStatLayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
 fFullStats := False;
 ClearStats;
 If Assigned(Params) then
-  If Params.Exists('TStatWriter.FullStats',nvtBool) then
-    fFullStats := Params.BoolValue['TStatWriter.FullStats'];
+  If Params.Exists('TStatLayerWriter.FullStats',nvtBool) then
+    fFullStats := Params.BoolValue['TStatLayerWriter.FullStats'];
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TStatWriter.ClearStats;
+procedure TStatLayerWriter.ClearStats;
 begin
 fCounter := 0;
 FillChar(fByteCounters,SizeOf(TStatsPerByte),0);
 end;
 
 {-------------------------------------------------------------------------------
-    TStatWriter - public methods
+    TStatLayerWriter - public methods
 -------------------------------------------------------------------------------}
 
-class Function TStatWriter.LayerObjectKind: TLSLayerObjectKind;
+class Function TStatLayerWriter.LayerObjectKind: TLSLayerObjectKind;
 begin
 Result := [lobPassthrough,lobObserver];
 end;
 
 //------------------------------------------------------------------------------
 
-class Function TStatWriter.LayerObjectParams: TLSLayerObjectParams;
+class Function TStatLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('TStatWriter.FullStats',nvtBool,[loprConstructor,loprInitializer],'Observe all statistics');
-Result[1] := LayerObjectParam('TStatWriter.KeepStats',nvtBool,[loprInitializer],'Keep current statistics');
+Result[0] := LayerObjectParam('TStatLayerWriter.FullStats',nvtBool,[loprConstructor,loprInitializer],'Observe all statistics');
+Result[1] := LayerObjectParam('TStatLayerWriter.KeepStats',nvtBool,[loprInitializer],'Keep current statistics');
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TStatWriter.Init(Params: TSimpleNamedValues);
+procedure TStatLayerWriter.Init(Params: TSimpleNamedValues);
 begin
 inherited;
 If Assigned(Params) then
   begin
-    If Params.Exists('TStatWriter.FullStats',nvtBool) then
-      fFullStats := Params.BoolValue['TStatWriter.FullStats'];
-    If Params.Exists('TStatWriter.KeepStats',nvtBool) then
-      If not Params.BoolValue['TStatWriter.KeepStats'] then
+    If Params.Exists('TStatLayerWriter.FullStats',nvtBool) then
+      fFullStats := Params.BoolValue['TStatLayerWriter.FullStats'];
+    If Params.Exists('TStatLayerWriter.KeepStats',nvtBool) then
+      If not Params.BoolValue['TStatLayerWriter.KeepStats'] then
         ClearStats;
   end
 else ClearStats;

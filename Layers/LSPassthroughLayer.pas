@@ -8,15 +8,15 @@ uses
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                               TPassthroughReader                                                             
+                             TPassthroughLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TPassthroughReader - class declaration
+    TPassthroughLayerReader - class declaration
 ===============================================================================}
 
 type
-  TPassthroughReader = class(TLSLayerReader)
+  TPassthroughLayerReader = class(TLSLayerReader)
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
@@ -26,14 +26,14 @@ type
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                               TPassthroughWriter                                                             
+                             TPassthroughLayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TPassthroughWriter - class declaration
+    TPassthroughLayerWriter - class declaration
 ===============================================================================}
 type
-  TPassthroughWriter = class(TLSLayerWriter)
+  TPassthroughLayerWriter = class(TLSLayerWriter)
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
@@ -45,33 +45,33 @@ implementation
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                               TPassthroughReader
+                             TPassthroughLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TPassthroughReader - class implementation
+    TPassthroughLayerReader - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TPassthroughReader - protected methods
+    TPassthroughLayerReader - protected methods
 -------------------------------------------------------------------------------}
 
-Function TPassthroughReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+Function TPassthroughLayerReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Result := SeekOut(Offset,Origin);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TPassthroughReader.ReadActive(out Buffer; Size: LongInt): LongInt;
+Function TPassthroughLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 begin
 Result := ReadOut(Buffer,Size);
 end;
 
 {-------------------------------------------------------------------------------
-    TPassthroughReader - public methods
+    TPassthroughLayerReader - public methods
 -------------------------------------------------------------------------------}
 
-class Function TPassthroughReader.LayerObjectKind: TLSLayerObjectKind;
+class Function TPassthroughLayerReader.LayerObjectKind: TLSLayerObjectKind;
 begin
 Result := [lobPassthrough];
 end;
@@ -79,33 +79,33 @@ end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                               TPassthroughWriter
+                             TPassthroughLayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TPassthroughWriter - class implementation
+    TPassthroughLayerWriter - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TPassthroughWriter - protected methods
+    TPassthroughLayerWriter - protected methods
 -------------------------------------------------------------------------------}
 
-Function TPassthroughWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+Function TPassthroughLayerWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Result := SeekOut(Offset,Origin);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TPassthroughWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
+Function TPassthroughLayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 begin
 Result := WriteOut(Buffer,Size);
 end;
 
 {-------------------------------------------------------------------------------
-    TPassthroughWriter - public methods
+    TPassthroughLayerWriter - public methods
 -------------------------------------------------------------------------------}
 
-class Function TPassthroughWriter.LayerObjectKind: TLSLayerObjectKind;
+class Function TPassthroughLayerWriter.LayerObjectKind: TLSLayerObjectKind;
 begin
 Result := [lobPassthrough];
 end;
