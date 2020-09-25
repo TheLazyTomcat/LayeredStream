@@ -2,11 +2,8 @@ unit LayeredStream;
 
 {$IFDEF FPC}
   {$MODE ObjFPC}
-{$ELSE}
 {$ENDIF}
 {$H+}
-
-{$message 'add null layer - stoppers'}
 
 interface
 

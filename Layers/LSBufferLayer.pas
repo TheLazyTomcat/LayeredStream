@@ -11,14 +11,14 @@ uses
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                                  TBufferReader
+                               TBufferLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TBufferReader - class declaration
+    TBufferLayerReader - class declaration
 ===============================================================================}
 type
-  TBufferReader = class(TLSLayerReader)
+  TBufferLayerReader = class(TLSLayerReader)
   private
     fMemory:  Pointer;
     fSize:    LongInt;
@@ -40,14 +40,14 @@ type
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                                  TBufferWriter
+                               TBufferLayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TBufferWriter - class declaration
+    TBufferLayerWriter - class declaration
 ===============================================================================}
 type
-  TBufferWriter = class(TLSLayerWriter)
+  TBufferLayerWriter = class(TLSLayerWriter)
   private
     fMemory:  Pointer;
     fSize:    LongInt;
@@ -74,20 +74,20 @@ uses
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                                  TBufferReader
+                               TBufferLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 const
-  LS_BUFFERREADER_BUFFERSIZE = 1024 * 1024; // 1MiB
+  LS_BUFFERLAYERREADER_SIZE = 1024 * 1024;  // 1MiB
 
 {===============================================================================
-    TBufferReader - class implementation
+    TBufferLayerReader - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TBufferReader - protected methods
+    TBufferLayerReader - protected methods
 -------------------------------------------------------------------------------}
 
-Function TBufferReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+Function TBufferLayerReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Flush;
 Result := SeekOut(Offset,Origin);
@@ -95,10 +95,11 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TBufferReader.ReadActive(out Buffer; Size: LongInt): LongInt;
+Function TBufferLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 var
   BytesRead:  LongInt;
 begin
+{$message 'revisit'}
 // if buffer is empty, fill it
 If fUsed <= 0 then
   begin
@@ -161,13 +162,13 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TBufferReader.Initialize(Params: TSimpleNamedValues);
+procedure TBufferLayerReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fSize := LS_BUFFERREADER_BUFFERSIZE;
+fSize := LS_BUFFERLAYERREADER_SIZE;
 If Assigned(Params) then
-  If Params.Exists('TBufferReader.Size',nvtInteger) then
-    fSize := LongInt(Params.IntegerValue['TBufferReader.Size']);
+  If Params.Exists('TBufferLayerReader.Size',nvtInteger) then
+    fSize := LongInt(Params.IntegerValue['TBufferLayerReader.Size']);
 GetMem(fMemory,fSize);
 fUsed := 0;
 fOffset := 0;
@@ -175,32 +176,32 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TBufferReader.Finalize;
+procedure TBufferLayerReader.Finalize;
 begin
 FreeMem(fMemory,fSize);
 inherited;
 end;
 
 {-------------------------------------------------------------------------------
-    TBufferReader - public methods
+    TBufferLayerReader - public methods
 -------------------------------------------------------------------------------}
 
-class Function TBufferReader.LayerObjectKind: TLSLayerObjectKind;
+class Function TBufferLayerReader.LayerObjectKind: TLSLayerObjectKind;
 begin
 Result := [lobAccumulator];
 end;
 
 //------------------------------------------------------------------------------
 
-class Function TBufferReader.LayerObjectParams: TLSLayerObjectParams;
+class Function TBufferLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
-Result[0] := LayerObjectParam('TBufferReader.Size',nvtInteger,[loprConstructor],'Size of the memory buffer');
+Result[0] := LayerObjectParam('TBufferLayerReader.Size',nvtInteger,[loprConstructor],'Size of the memory buffer');
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TBufferReader.Flush;
+procedure TBufferLayerReader.Flush;
 begin
 inherited;
 // discard everything still in the buffer and seek back the buffered amount
@@ -213,20 +214,20 @@ end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                                  TBufferWriter
+                               TBufferLayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 const
-  LS_BUFFERWRITER_BUFFERSIZE = 1024 * 1024; // 1MiB
+  LS_BUFFERLAYERWRITER_SIZE = 1024 * 1024;  // 1MiB
 
 {===============================================================================
-    TBufferWriter - class implementation
+    TBufferLayerWriter - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TBufferWriter - protected methods
+    TBufferLayerWriter - protected methods
 -------------------------------------------------------------------------------}
 
-Function TBufferWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
+Function TBufferLayerWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Flush;
 Result := SeekOut(Offset,Origin);
@@ -234,10 +235,11 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TBufferWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
+Function TBufferLayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 var
   BytesWritten: LongInt;
 begin
+{$message 'revisit'}
 If Size <= (fSize - fUsed) then
   begin
   {
@@ -305,7 +307,6 @@ else
             // only part of the buffered data was written
             Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fUsed - BytesWritten);
             fUsed := fUsed - BytesWritten;
-            {$message 'revisit'}
             // buffer part of new data
             Result := fSize - fUsed;
             Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Result);
@@ -335,50 +336,50 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TBufferWriter.Initialize(Params: TSimpleNamedValues);
+procedure TBufferLayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fSize := LS_BUFFERWRITER_BUFFERSIZE;
+fSize := LS_BUFFERLAYERWRITER_SIZE;
 If Assigned(Params) then
-  If Params.Exists('TBufferWriter.Size',nvtInteger) then
-    fSize := LongInt(Params.IntegerValue['TBufferWriter.Size']);
+  If Params.Exists('TBufferLayerWriter.Size',nvtInteger) then
+    fSize := LongInt(Params.IntegerValue['TBufferLayerWriter.Size']);
 GetMem(fMemory,fSize);
 fUsed := 0;
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TBufferWriter.Finalize;
+procedure TBufferLayerWriter.Finalize;
 begin
 FreeMem(fMemory,fSize);
 inherited;
 end;
 
 {-------------------------------------------------------------------------------
-    TBufferWriter - public methods
+    TBufferLayerWriter - public methods
 -------------------------------------------------------------------------------}
 
-class Function TBufferWriter.LayerObjectKind: TLSLayerObjectKind;
+class Function TBufferLayerWriter.LayerObjectKind: TLSLayerObjectKind;
 begin
 Result := [lobAccumulator];
 end;
 
 //------------------------------------------------------------------------------
 
-class Function TBufferWriter.LayerObjectParams: TLSLayerObjectParams;
+class Function TBufferLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
-Result[0] := LayerObjectParam('TBufferWriter.Size',nvtInteger,[loprConstructor],'Size of the memory buffer');
+Result[0] := LayerObjectParam('TBufferLayerWriter.Size',nvtInteger,[loprConstructor],'Size of the memory buffer');
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TBufferWriter.Flush;
+procedure TBufferLayerWriter.Flush;
 begin
 inherited;
 If fActive and (fUsed > 0) then
   If WriteOut(fMemory^,fUsed) <> fUsed then
-    raise EWriteError.Create('TBufferWriter.Flush: Failed to flush all buffered data.');
+    raise EWriteError.Create('TBufferLayerWriter.Flush: Failed to flush all buffered data.');
 fUsed := 0;
 end;
 
