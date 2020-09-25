@@ -6,6 +6,8 @@ unit LayeredStream;
 {$ENDIF}
 {$H+}
 
+{$message 'add null layer - stoppers'}
+
 interface
 
 uses

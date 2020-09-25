@@ -12,10 +12,16 @@ uses
                                TNotifyLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
+type
+  TNotifyLayerSeekEvent = procedure(const Offset: Int64; Origin: TSeekOrigin; Result: Int64) of object;
+  TNotifyLayerSeekCallback = procedure(const Offset: Int64; Origin: TSeekOrigin; Result: Int64);
+
+  TNotifyLayerReadEvent = procedure(const Buffer; Size: LongInt; Result: LongInt) of object;
+  TNotifyLayerReadCallback = procedure(const Buffer; Size: LongInt; Result: LongInt);
+
 {===============================================================================
     TNotifyLayerReader - class declaration
 ===============================================================================}
-
 type
   TNotifyLayerReader = class(TLSLayerReader)
   private
@@ -27,6 +33,10 @@ type
     fBeforeReadCallback:  TNotifyCallback;
     fAfterReadEvent:      TNotifyEvent;
     fAfterReadCallback:   TNotifyCallback;
+    fSeekEvent:           TNotifyLayerSeekEvent;
+    fSeekCallback:        TNotifyLayerSeekCallback;
+    fReadEvent:           TNotifyLayerReadEvent;
+    fReadCallback:        TNotifyLayerReadCallback;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
@@ -36,24 +46,28 @@ type
     procedure DoAfterRead; virtual;
   public
     class Function LayerObjectKind: TLSLayerObjectKind; override;
+    // seek notification
     property OnBeforeSeekEvent: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
     property OnBeforeSeekCallback: TNotifyCallback read fBeforeSeekCallback write fBeforeSeekCallback;
     property OnBeforeSeek: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
     property OnAfterSeekEvent: TNotifyEvent read fAfterSeekEvent write fAfterSeekEvent;
     property OnAfterSeekCallback: TNotifyCallback read fAfterSeekCallback write fAfterSeekCallback;
     property OnAfterSeek: TNotifyEvent read fAfterSeekEvent write fAfterSeekEvent;
-    property OnSeekEvent: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
-    property OnSeekCallback: TNotifyCallback read fBeforeSeekCallback write fBeforeSeekCallback;
-    property OnSeek: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
+    // seek details
+    property OnSeekEvent: TNotifyLayerSeekEvent read fSeekEvent write fSeekEvent;
+    property OnSeekCallback: TNotifyLayerSeekCallback read fSeekCallback write fSeekCallback;
+    property OnSeek: TNotifyLayerSeekEvent read fSeekEvent write fSeekEvent;
+    // read notification
     property OnBeforeReadEvent: TNotifyEvent read fBeforeReadEvent write fBeforeReadEvent;
     property OnBeforeReadCallback: TNotifyCallback read fBeforeReadCallback write fBeforeReadCallback;
     property OnBeforeRead: TNotifyEvent read fBeforeReadEvent write fBeforeReadEvent;
     property OnAfterReadEvent: TNotifyEvent read fAfterReadEvent write fAfterReadEvent;
     property OnAfterReadCallback: TNotifyCallback read fAfterReadCallback write fAfterReadCallback;
     property OnAfterRead: TNotifyEvent read fAfterReadEvent write fAfterReadEvent;
-    property OnReadEvent: TNotifyEvent read fAfterReadEvent write fAfterReadEvent;
-    property OnReadCallback: TNotifyCallback read fAfterReadCallback write fAfterReadCallback;
-    property OnRead: TNotifyEvent read fAfterReadEvent write fAfterReadEvent;
+    // read details
+    property OnReadEvent: TNotifyLayerReadEvent read fReadEvent write fReadEvent;
+    property OnReadCallback: TNotifyLayerReadCallback read fReadCallback write fReadCallback;
+    property OnRead: TNotifyLayerReadEvent read fReadEvent write fReadEvent;
   end;
 
 {===============================================================================
@@ -61,6 +75,10 @@ type
                                TNotifyLayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
+type
+  TNotifyLayerWriteEvent = procedure(const Buffer; Size: LongInt; Result: LongInt) of object;
+  TNotifyLayerWriteCallback = procedure(const Buffer; Size: LongInt; Result: LongInt);
+
 {===============================================================================
     TNotifyLayerWriter - class declaration
 ===============================================================================}
@@ -75,6 +93,10 @@ type
     fBeforeWriteCallback: TNotifyCallback;
     fAfterWriteEvent:     TNotifyEvent;
     fAfterWriteCallback:  TNotifyCallback;
+    fSeekEvent:           TNotifyLayerSeekEvent;
+    fSeekCallback:        TNotifyLayerSeekCallback;
+    fWriteEvent:          TNotifyLayerWriteEvent;
+    fWriteCallback:       TNotifyLayerWriteCallback;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
@@ -84,24 +106,28 @@ type
     procedure DoAfterWrite; virtual;
   public
     class Function LayerObjectKind: TLSLayerObjectKind; override;
+    // seek notification
     property OnBeforeSeekEvent: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
     property OnBeforeSeekCallback: TNotifyCallback read fBeforeSeekCallback write fBeforeSeekCallback;
     property OnBeforeSeek: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
     property OnAfterSeekEvent: TNotifyEvent read fAfterSeekEvent write fAfterSeekEvent;
     property OnAfterSeekCallback: TNotifyCallback read fAfterSeekCallback write fAfterSeekCallback;
     property OnAfterSeek: TNotifyEvent read fAfterSeekEvent write fAfterSeekEvent;
-    property OnSeekEvent: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
-    property OnSeekCallback: TNotifyCallback read fBeforeSeekCallback write fBeforeSeekCallback;
-    property OnSeek: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
+    // seek details
+    property OnSeekEvent: TNotifyLayerSeekEvent read fSeekEvent write fSeekEvent;
+    property OnSeekCallback: TNotifyLayerSeekCallback read fSeekCallback write fSeekCallback;
+    property OnSeek: TNotifyLayerSeekEvent read fSeekEvent write fSeekEvent;
+    // write notification
     property OnBeforeWriteEvent: TNotifyEvent read fBeforeWriteEvent write fBeforeWriteEvent;
     property OnBeforeWriteCallback: TNotifyCallback read fBeforeWriteCallback write fBeforeWriteCallback;
     property OnBeforeWrite: TNotifyEvent read fBeforeWriteEvent write fBeforeWriteEvent;
     property OnAfterWriteEvent: TNotifyEvent read fAfterWriteEvent write fAfterWriteEvent;
     property OnAfterWriteCallback: TNotifyCallback read fAfterWriteCallback write fAfterWriteCallback;
     property OnAfterWrite: TNotifyEvent read fAfterWriteEvent write fAfterWriteEvent;
-    property OnWriteEvent: TNotifyEvent read fBeforeWriteEvent write fBeforeWriteEvent;
-    property OnWriteCallback: TNotifyCallback read fBeforeWriteCallback write fBeforeWriteCallback;
-    property OnWrite: TNotifyEvent read fBeforeWriteEvent write fBeforeWriteEvent;
+    // write details
+    property OnWriteEvent: TNotifyLayerWriteEvent read fWriteEvent write fWriteEvent;
+    property OnWriteCallback: TNotifyLayerWriteCallback read fWriteCallback write fWriteCallback;
+    property OnWrite: TNotifyLayerWriteEvent read fWriteEvent write fWriteEvent;
   end;
 
 implementation
@@ -123,6 +149,10 @@ begin
 DoBeforeSeek;
 Result := SeekOut(Offset,Origin);
 DoAfterSeek;
+If Assigned(fSeekEvent) then
+  fSeekEvent(Offset,Origin,Result);
+If Assigned(fSeekCallback) then
+  fSeekCallback(Offset,Origin,Result);
 end;
 
 //------------------------------------------------------------------------------
@@ -132,6 +162,10 @@ begin
 DoBeforeRead;
 Result := ReadOut(Buffer,Size);
 DoAfterRead;
+If Assigned(fReadEvent) then
+  fReadEvent(Buffer,Size,Result);
+If Assigned(fReadCallback) then
+  fReadCallback(Buffer,Size,Result);
 end;
 
 //------------------------------------------------------------------------------
@@ -201,6 +235,10 @@ begin
 DoBeforeSeek;
 Result := SeekOut(Offset,Origin);
 DoAfterSeek;
+If Assigned(fSeekEvent) then
+  fSeekEvent(Offset,Origin,Result);
+If Assigned(fSeekCallback) then
+  fSeekCallback(Offset,Origin,Result);
 end;
 
 //------------------------------------------------------------------------------
@@ -210,6 +248,10 @@ begin
 DoBeforeWrite;
 Result := WriteOut(Buffer,Size);
 DoAfterWrite;
+If Assigned(fWriteEvent) then
+  fWriteEvent(Buffer,Size,Result);
+If Assigned(fWriteCallback) then
+  fWriteCallback(Buffer,Size,Result);
 end;
 
 //------------------------------------------------------------------------------
