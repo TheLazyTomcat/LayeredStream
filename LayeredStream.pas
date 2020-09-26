@@ -112,9 +112,7 @@ type
 
 Function LayerObjectParam(const Name: String; ValueType: TSNVNamedValueType; Receivers: TLSLayerObjectParamReceivers; const Description: String): TLSLayerObjectParam;
 
-{
-  connection events
-}
+// connection events
 type
   TLSLayerObjectSeekConnection = Function(const Offset: Int64; Origin: TSeekOrigin): Int64 of object;
   TLSLayerObjectReadConnection = Function(out Buffer; Size: LongInt): LongInt of object;
@@ -287,19 +285,18 @@ type
     procedure Delete(Index: Integer); virtual;
     procedure Clear; virtual;
     // layers methods
-    procedure Init; virtual;  // initilizes all layers from first to last
-    procedure Final; virtual; // finalizes all layers from last to first
-    procedure Flush; virtual; // flushes all layers according to mode (FlushReaders, FlushWriters)
-    {$message 'implement'}
-    //procedure Init(Index: Integer; ReaderParams, WriterParams: TSimpleNamedValues = nil); overload; virtual;
-    //procedure Final(Index: Integer); overload; virtual;
-    //procedure Flush(Index: Integer); overload; virtual;
-    //procedure InitReader(Index: Integer; Params: TSimpleNamedValues = nil); virtual;
-    //procedure InitWriter(Index: Integer; Params: TSimpleNamedValues = nil); virtual;
-    //procedure FinalReader(Index: Integer); virtual;
-    //procedure FinalWriter(Index: Integer); virtual;
-    //procedure FlushReader(Index: Integer);
-    //procedure FlushWriter(Index: Integer);
+    procedure Init; overload; virtual;  // initilizes all layers from first to last
+    procedure Final; overload; virtual; // finalizes all layers from last to first
+    procedure Flush; overload; virtual; // flushes all layers according to mode (FlushReaders, FlushWriters)
+    procedure Init(Index: Integer; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure Final(Index: Integer); overload; virtual;
+    procedure Flush(Index: Integer); overload; virtual;
+    procedure InitReader(Index: Integer; Params: TSimpleNamedValues = nil); virtual;
+    procedure InitWriter(Index: Integer; Params: TSimpleNamedValues = nil); virtual;
+    procedure FinalReader(Index: Integer); virtual;
+    procedure FinalWriter(Index: Integer); virtual;
+    procedure FlushReader(Index: Integer); virtual;
+    procedure FlushWriter(Index: Integer); virtual;
     // stream methods
     Function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function Read(var Buffer; Count: LongInt): LongInt; override;
@@ -1134,6 +1131,102 @@ else
  {lsmUndefined,lsmSeek}
   // do nothing
 end;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.Init(Index: Integer; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+begin
+If CheckIndex(Index) then
+  begin
+    fLayers[Index].Reader.Init(ReaderParams);
+    fLayers[Index].Writer.Init(WriterParams);
+  end
+else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Init: Index (%d) out of bounds.',[Index]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.Final(Index: Integer);
+begin
+If CheckIndex(Index) then
+  begin
+    fLayers[Index].Reader.Final;
+    fLayers[Index].Writer.Final;
+  end
+else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Final: Index (%d) out of bounds.',[Index]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.Flush(Index: Integer);
+begin
+If CheckIndex(Index) then
+  begin
+    fLayers[Index].Reader.Flush;
+    fLayers[Index].Writer.Flush;
+  end
+else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Flush: Index (%d) out of bounds.',[Index]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.InitReader(Index: Integer; Params: TSimpleNamedValues = nil);
+begin
+If CheckIndex(Index) then
+  fLayers[Index].Reader.Init(Params)
+else
+  raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.InitReader: Index (%d) out of bounds.',[Index]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.InitWriter(Index: Integer; Params: TSimpleNamedValues = nil);
+begin
+If CheckIndex(Index) then
+  fLayers[Index].Writer.Init(Params)
+else
+  raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.InitWriter: Index (%d) out of bounds.',[Index]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.FinalReader(Index: Integer);
+begin
+If CheckIndex(Index) then
+  fLayers[Index].Reader.Final
+else
+  raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.FinalReader: Index (%d) out of bounds.',[Index]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.FinalWriter(Index: Integer);
+begin
+If CheckIndex(Index) then
+  fLayers[Index].Writer.Final
+else
+  raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.FinalWriter: Index (%d) out of bounds.',[Index]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.FlushReader(Index: Integer);
+begin
+If CheckIndex(Index) then
+  fLayers[Index].Reader.Flush
+else
+  raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.FlushReader: Index (%d) out of bounds.',[Index]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.FlushWriter(Index: Integer);
+begin
+If CheckIndex(Index) then
+  fLayers[Index].Writer.Flush
+else
+  raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.FlushWriter: Index (%d) out of bounds.',[Index]);
 end;
 
 //------------------------------------------------------------------------------
