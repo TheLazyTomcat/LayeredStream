@@ -1,7 +1,5 @@
 unit LSBufferLayer;
 
-{$message 'add ConnectedBuffer(Writer/Reader)'}
-
 interface
 
 uses
@@ -97,10 +95,11 @@ end;
 
 Function TBufferLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 var
-  BytesRead:  LongInt;
+  BytesRead:    LongInt;
+  BytesCopied:  LongInt;
+  BytesToCopy:  LongInt;
 begin
-{$message 'revisit'}
-// if buffer is empty, fill it
+// if buffer is empty, try to fill it
 If fUsed <= 0 then
   begin
     fUsed := ReadOut(fMemory^,fSize);
@@ -110,7 +109,7 @@ If fUsed <= 0 then
 If Size <= fUsed then
   begin
   {
-    all required data are buffered
+    all required data are buffered - just copy them to the output
   }
     Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,Size);
     fUsed := fUsed - Size;
@@ -123,40 +122,58 @@ If Size <= fUsed then
 else If Size <= fSize then
   begin
   {
-    not all required data are buffered, but can all fit into allocated buffer
+    not all required data are buffered, but can all fit into allocated buffer -
+    copy whatever is buffered to the output...
   }
     If fUsed <> 0 then
-      Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,fUsed);
-    fOffset := 0;
-    If (Size - fUsed) <= (fSize shr 1) then
       begin
-        // remaining required size is smaller or equal than 1/2 of the buffer
+        Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,fUsed);
+        BytesCopied := fUsed;
+        fUsed := 0;
+      end
+    else BytesCopied := 0;
+    fOffset := 0;
+    If (Size - BytesCopied) <= (fSize shr 1) then
+      begin
+      {
+        remaining required size is smaller or equal than 1/2 of the buffer - try
+        to fill the buffer and move the remaining data (or at least part of
+        them) to the output
+      }
         BytesRead := ReadOut(fMemory^,fSize);
-        fOffset := Min(BytesRead,Size - fUsed);
-        Move(fMemory^,Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,fOffset);
-        Result := fUsed + fOffset;
-        fUsed := BytesRead - fOffset;
+        BytesToCopy := Min(BytesRead,Size - BytesCopied);
+        Move(fMemory^,Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,BytesToCopy);
+        fUsed := BytesRead - BytesToCopy;
+        fOffset := BytesToCopy;
+        Result := BytesCopied + BytesToCopy;        
       end
     else
       begin
-        // remaining required size is larger than 1/2 of the buffer
-        BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,Size - fUsed);
-        Result := fUsed + BytesRead;
-        fUsed := 0;
+      {
+        remaining required size is larger than 1/2 of the buffer - try read the
+        rest directly to the output
+      }
+        BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,Size - BytesCopied);
+        Result := BytesCopied + BytesRead;
       end;
   end
 else
   begin
   {
     required data not buffered and required size is larger than size of the
-    allocated buffer
+    allocated buffer - copy what is buffered and then try read the rest directly
+    to the output
   }
     If fUsed <> 0 then
-      Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,fUsed);
-    BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,Size - fUsed);
-    Result := BytesRead + fUsed;
-    fUsed := 0;
+      begin
+        Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,fUsed);
+        BytesCopied := fUsed;
+        fUsed := 0;
+      end
+    else BytesCopied := 0;
     fOffset := 0;
+    BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,Size - BytesCopied);
+    Result := BytesCopied + BytesRead;
   end;
 end;
 
@@ -238,12 +255,12 @@ end;
 Function TBufferLayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 var
   BytesWritten: LongInt;
+  BytesToWrite: LongInt;
 begin
-{$message 'revisit'}
 If Size <= (fSize - fUsed) then
   begin
   {
-    data will fit free space in the buffer
+    data will fit free space in the buffer - just copy them to the buffer
   }
     Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
     fUsed := fUsed + Size;
@@ -252,7 +269,9 @@ If Size <= (fSize - fUsed) then
 else If Size < fSize then
   begin
   {
-    data won't fit free space, but are smaller than allocated buffer
+    data won't fit free space, but are smaller than allocated buffer - try to
+    write what is buffered, when successful, buffer new data, when unsuccessful,
+    buffer at least part of the new data
   }
     If fUsed > 0 then
       begin
@@ -265,7 +284,7 @@ else If Size < fSize then
             fUsed := fUsed - BytesWritten;
             If Size <= (fSize - fUsed) then
               begin
-                // whole new data will now fit into free space
+                // whole new data will now fit into free space - buffer them
                 Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
                 fUsed := fUsed + Size;
                 Result := Size;
@@ -273,9 +292,10 @@ else If Size < fSize then
             else
               begin
                 // only part of the new data can fit
-                Result := Min(fSize - fUsed,Size);
-                Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Result);
-                fUsed := fUsed + Result;
+                BytesToWrite := fSize - fUsed;
+                Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,BytesToWrite);
+                fUsed := fSize;
+                Result := BytesToWrite;
               end;
           end
         else
@@ -297,20 +317,23 @@ else If Size < fSize then
 else
   begin
   {
-    data won't fit free space and are larger than allocated buffer
+    data won't fit free space and are larger than allocated buffer - try to
+    write buffered data and then, when successful, directly write out the new
+    data, if unsuccessful, buffer part of new data that can fit
   }
     If fUsed > 0 then
       begin
         BytesWritten := WriteOut(fMemory^,fUsed);
         If BytesWritten < fUsed then
           begin
-            // only part of the buffered data was written
+            // only part of the buffered data was written...
             Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fUsed - BytesWritten);
             fUsed := fUsed - BytesWritten;
-            // buffer part of new data
-            Result := fSize - fUsed;
-            Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Result);
+            // ...buffer part of new data
+            BytesToWrite := fSize - fUsed;
+            Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,BytesToWrite);
             fUsed := fSize;
+            Result := BytesToWrite;
           end
         else
           begin
