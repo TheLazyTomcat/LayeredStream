@@ -108,7 +108,7 @@ end;
 class Function TStopLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
-Result[0] := LayerObjectParam('TStopLayerReader.StopSeek',nvtBool,[loprConstructor,loprInitializer],'Stop seeking requests');
+Result[0] := LayerObjectParam('TStopLayerReader.StopSeek',nvtBool,[loprConstructor,loprInitializer],'');
 end;
 
 //------------------------------------------------------------------------------
@@ -174,7 +174,7 @@ end;
 class Function TStopLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
-Result[0] := LayerObjectParam('TStopLayerWriter.StopSeek',nvtBool,[loprConstructor,loprInitializer],'Stop seeking requests');
+Result[0] := LayerObjectParam('TStopLayerWriter.StopSeek',nvtBool,[loprConstructor,loprInitializer],'');
 end;
 
 //------------------------------------------------------------------------------

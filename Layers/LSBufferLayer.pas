@@ -213,7 +213,7 @@ end;
 class Function TBufferLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
-Result[0] := LayerObjectParam('TBufferLayerReader.Size',nvtInteger,[loprConstructor],'Size of the memory buffer');
+Result[0] := LayerObjectParam('TBufferLayerReader.Size',nvtInteger,[loprConstructor],'');
 end;
 
 //------------------------------------------------------------------------------
@@ -392,7 +392,7 @@ end;
 class Function TBufferLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
-Result[0] := LayerObjectParam('TBufferLayerWriter.Size',nvtInteger,[loprConstructor],'Size of the memory buffer');
+Result[0] := LayerObjectParam('TBufferLayerWriter.Size',nvtInteger,[loprConstructor],'');
 end;
 
 //------------------------------------------------------------------------------
