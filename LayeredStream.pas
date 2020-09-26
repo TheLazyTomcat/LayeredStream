@@ -46,7 +46,7 @@ type
   {
     lobProcessor
 
-    Data are changed in some way (eg. compressed, encrypted, ...).
+    Data are passing but are changed in some way (eg. compressed, encrypted, ...).
   }
     lobProcessor,
   {
@@ -84,7 +84,18 @@ type
     even possible that the layer is producing data with no input at all.
   }
     lobGenerator,
+  {
+    lobNeedsInit
 
+    The layer object requires Init to be called for its proper function.
+  }
+    lobNeedsInit,
+  {
+    lobNeedsInit
+
+    The layer object requires Final to be called for its proper function.
+  }
+    lobNeedsFinal,
   {
     lobOther
 
