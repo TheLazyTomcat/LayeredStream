@@ -145,19 +145,21 @@ type
     fActive:          Boolean;
     procedure SetCounterpart(Value: TLSLayerObjectBase); virtual;
     procedure SetActive(Value: Boolean); virtual;
+    Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;    
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual; abstract;
     Function SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
+    procedure InternalInit; virtual;  // called by layered stream after the layer is set up, do not call yourself!
+    procedure InternalFinal; virtual; // called by layered stream before the layer is removed, calls flush, do not call yourself!
     procedure Initialize(Params: TSimpleNamedValues); virtual;
     procedure Finalize; virtual;
+    // protected properties
+    property SeekConnection: TLSLayerObjectSeekConnection read fSeekConnection write fSeekConnection;
   public
     class Function LayerObjectType: TLSLayerObjectType; virtual;              // reader/writer
     class Function LayerObjectProperties: TLSLayerObjectProperties; virtual;  // what the objects does with data, how it behaves, ...
     class Function LayerObjectParams: TLSLayerObjectParams; virtual;          // list of accepted parameters
     constructor Create(Params: TSimpleNamedValues);
     destructor Destroy; override;
-    {$message 'move to protected?'}
-    procedure InternalInit; virtual;  // called by layered stream after the layer is set up, do not call yourself!
-    procedure InternalFinal; virtual; // called by layered stream before the layer is removed, calls flush, do not call yourself!
   {
     Note that calling Init or Final is not mandatory, they are here only for
     those layer objects that really do need them (indicated by lopNeedsInit and
@@ -167,10 +169,7 @@ type
     procedure Init(Params: TSimpleNamedValues = nil); virtual;  // can be called any time, multiple times
     procedure Final; virtual;                                   // -//-
     procedure Flush; virtual;
-    {$message 'move to protected?'}
-    Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
-    property Counterpart: TLSLayerObjectBase read fCounterpart write SetCounterpart;
-    property SeekConnection: TLSLayerObjectSeekConnection read fSeekConnection write fSeekConnection;
+    property Counterpart: TLSLayerObjectBase read fCounterpart write SetCounterpart;    
     property Active: Boolean read fActive write SetActive;
   end;
 
@@ -188,12 +187,12 @@ type
   TLSLayerReader = class(TLSLayerObjectBase)
   protected
     fReadConnection:  TLSLayerObjectReadConnection;
+    Function ReadIn(out Buffer; Size: LongInt): LongInt; virtual;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; virtual; abstract;
     Function ReadOut(out Buffer; Size: LongInt): LongInt; virtual;
+    property ReadConnection: TLSLayerObjectReadConnection read fReadConnection write fReadConnection;
   public
     class Function LayerObjectType: TLSLayerObjectType; override;
-    Function ReadIn(out Buffer; Size: LongInt): LongInt; virtual;
-    property ReadConnection: TLSLayerObjectReadConnection read fReadConnection write fReadConnection;
   end;
 
   TLSLayerReaderClass = class of TLSLayerReader;
@@ -210,12 +209,12 @@ type
   TLSLayerWriter = class(TLSLayerObjectBase)
   protected
     fWriteConnection: TLSLayerObjectWriteConnection;
+    Function WriteIn(const Buffer; Size: LongInt): LongInt; virtual;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; virtual; abstract;
     Function WriteOut(const Buffer; Size: LongInt): LongInt; virtual;
+    property WriteConnection: TLSLayerObjectWriteConnection read fWriteConnection write fWriteConnection;    
   public
     class Function LayerObjectType: TLSLayerObjectType; override;
-    Function WriteIn(const Buffer; Size: LongInt): LongInt; virtual;
-    property WriteConnection: TLSLayerObjectWriteConnection read fWriteConnection write fWriteConnection;
   end;
 
   TLSLayerWriterClass = class of TLSLayerWriter;
@@ -265,12 +264,12 @@ type
     procedure SetLayerActive(Index: Integer; Value: Boolean);
   protected
     Function ChangeMode(NewMode: TLayeredStreamMode): TLayeredStreamMode; virtual;  // returns previous mode
+    Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
+    Function SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
     Function ReadIn(out Buffer; Size: LongInt): LongInt; virtual;
     Function ReadOut(out Buffer; Size: LongInt): LongInt; virtual;
     Function WriteIn(const Buffer; Size: LongInt): LongInt; virtual;
     Function WriteOut(const Buffer; Size: LongInt): LongInt; virtual;
-    Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
-    Function SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
     procedure InitializeLayer(Index: Integer); virtual;
     procedure FinalizeLayer(Index: Integer); virtual;
     procedure ConnectLayer(Index: Integer); virtual;
@@ -389,6 +388,16 @@ end;
 
 //------------------------------------------------------------------------------
 
+Function TLSLayerObjectBase.SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+If fActive then
+  Result := SeekActive(Offset,Origin)
+else
+  Result := SeekOut(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
 Function TLSLayerObjectBase.SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Result := 0;
@@ -396,6 +405,20 @@ If Assigned(fSeekConnection) then
   Result := fSeekConnection(Offset,Origin)
 else
   ELSInvalidConnection.Create('TLSLayerObjectBase.SeekOut: Seek connection not assigned.');
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLSLayerObjectBase.InternalInit;
+begin
+// no action
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLSLayerObjectBase.InternalFinal;
+begin
+Flush;
 end;
 
 //------------------------------------------------------------------------------
@@ -455,20 +478,6 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TLSLayerObjectBase.InternalInit;
-begin
-// no action
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TLSLayerObjectBase.InternalFinal;
-begin
-Flush;
-end;
-
-//------------------------------------------------------------------------------
-
 procedure TLSLayerObjectBase.Init(Params: TSimpleNamedValues = nil);
 begin
 // nothing to do
@@ -488,15 +497,6 @@ begin
 // nothing to do
 end;
 
-//------------------------------------------------------------------------------
-
-Function TLSLayerObjectBase.SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64;
-begin
-If fActive then
-  Result := SeekActive(Offset,Origin)
-else
-  Result := SeekOut(Offset,Origin);
-end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -509,6 +509,16 @@ end;
 {-------------------------------------------------------------------------------
     TLSLayerReader - protected methods
 -------------------------------------------------------------------------------}
+
+Function TLSLayerReader.ReadIn(out Buffer; Size: LongInt): LongInt;
+begin
+If fActive then
+  Result := ReadActive(Buffer,Size)
+else
+  Result := ReadOut(Buffer,Size);
+end;
+
+//------------------------------------------------------------------------------
 
 Function TLSLayerReader.ReadOut(out Buffer; Size: LongInt): LongInt;
 begin
@@ -528,15 +538,6 @@ begin
 Result := lotReader;
 end;
 
-//------------------------------------------------------------------------------
-
-Function TLSLayerReader.ReadIn(out Buffer; Size: LongInt): LongInt;
-begin
-If fActive then
-  Result := ReadActive(Buffer,Size)
-else
-  Result := ReadOut(Buffer,Size);
-end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -549,6 +550,16 @@ end;
 {-------------------------------------------------------------------------------
     TLSLayerWriter - protected methods
 -------------------------------------------------------------------------------}
+
+Function TLSLayerWriter.WriteIn(const Buffer; Size: LongInt): LongInt;
+begin
+If fActive then
+  Result := WriteActive(Buffer,Size)
+else
+  Result := WriteOut(Buffer,Size);
+end;
+
+//------------------------------------------------------------------------------
 
 Function TLSLayerWriter.WriteOut(const Buffer; Size: LongInt): LongInt;
 begin
@@ -566,16 +577,6 @@ end;
 class Function TLSLayerWriter.LayerObjectType: TLSLayerObjectType;
 begin
 Result := lotWriter;
-end;
-
-//------------------------------------------------------------------------------
-
-Function TLSLayerWriter.WriteIn(const Buffer; Size: LongInt): LongInt;
-begin
-If fActive then
-  Result := WriteActive(Buffer,Size)
-else
-  Result := WriteOut(Buffer,Size);
 end;
 
 
@@ -692,6 +693,33 @@ end;
 
 //------------------------------------------------------------------------------
 
+Function TLayeredStream.SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64;
+var
+  OldMode:  TLayeredStreamMode;
+begin
+OldMode := ChangeMode(lsmSeek);
+If Length(fLayers) > 0 then
+  begin
+    case OldMode of
+      lsmRead:  Result := fLayers[HighIndex].Reader.SeekIn(Offset,Origin);
+      lsmWrite: Result := fLayers[HighIndex].Writer.SeekIn(Offset,Origin);
+    else
+     {lsmUndefined,lsmSeek}
+      Result := SeekOut(Offset,Origin);
+    end;
+  end
+else Result := SeekOut(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TLayeredStream.SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Result := fTarget.Seek(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
 Function TLayeredStream.ReadIn(out Buffer; Size: LongInt): LongInt;
 begin
 ChangeMode(lsmRead);
@@ -724,33 +752,6 @@ end;
 Function TLayeredStream.WriteOut(const Buffer; Size: LongInt): LongInt;
 begin
 Result := fTarget.Write(Buffer,Integer(Size));
-end;
-
-//------------------------------------------------------------------------------
-
-Function TLayeredStream.SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64;
-var
-  OldMode:  TLayeredStreamMode;
-begin
-OldMode := ChangeMode(lsmSeek);
-If Length(fLayers) > 0 then
-  begin
-    case OldMode of
-      lsmRead:  Result := fLayers[HighIndex].Reader.SeekIn(Offset,Origin);
-      lsmWrite: Result := fLayers[HighIndex].Writer.SeekIn(Offset,Origin);
-    else
-     {lsmUndefined,lsmSeek}
-      Result := SeekOut(Offset,Origin);
-    end;
-  end
-else Result := SeekOut(Offset,Origin);
-end;
-
-//------------------------------------------------------------------------------
-
-Function TLayeredStream.SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64;
-begin
-Result := fTarget.Seek(Offset,Origin);
 end;
 
 //------------------------------------------------------------------------------
