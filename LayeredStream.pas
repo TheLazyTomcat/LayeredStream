@@ -106,6 +106,8 @@ type
 
   TLSLayerObjectKind = set of TLSLayerObjectBehavior;
 
+//------------------------------------------------------------------------------
+
 {
   types used to return information about accepted parameters
 }
@@ -123,6 +125,8 @@ type
   TLSLayerObjectParams = array of TLSLayerObjectParam;
 
 Function LayerObjectParam(const Name: String; ValueType: TSNVNamedValueType; Receivers: TLSLayerObjectParamReceivers; const Description: String): TLSLayerObjectParam;
+
+//------------------------------------------------------------------------------
 
 // connection events
 type

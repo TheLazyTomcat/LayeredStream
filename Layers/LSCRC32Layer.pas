@@ -79,32 +79,29 @@ If Assigned(Params) then
   begin
     If Params.Exists('TCRC32LayerReader.Class',nvtInteger) then
       case Params.IntegerValue['TCRC32LayerReader.Class'] of
-         0: fHasher := TCRC32Hash.Create;
-         1: fHasher := TCRC32CHash.Create;
-        -1: begin
+        0:  fHasher := TCRC32Hash.Create;
+        1:  fHasher := TCRC32CHash.Create;
+        2:  begin
               fHasher := TCRC32CustomHash.Create;
               If Params.Exists('TCRC32LayerReader.PresetIndex',nvtInteger) then
-                TCRC32CustomHash(fHasher).LoadPreset(Params.IntegerValue['TCRC32LayerReader.PresetIndex']);
-            end;
-        -2: begin
-              fHasher := TCRC32CustomHash.Create;
-              If Params.Exists('TCRC32LayerReader.PresetName',nvtString) then
-                TCRC32CustomHash(fHasher).LoadPreset(Params.StringValue['TCRC32LayerReader.PresetName']);
-            end;
-        -3: begin
-              fHasher := TCRC32CustomHash.Create;
-              If Params.Exists('TCRC32LayerReader.CRC32Poly',nvtInteger) then
-                TCRC32CustomHash(fHasher).CRC32Poly := TCRC32Sys(Params.IntegerValue['TCRC32LayerReader.CRC32Poly'])
-              else If Params.Exists('TCRC32LayerReader.CRC32PolyRef',nvtInteger) then
-                TCRC32CustomHash(fHasher).CRC32PolyRef := TCRC32Sys(Params.IntegerValue['TCRC32LayerReader.CRC32PolyRef']);
-              If Params.Exists('TCRC32LayerReader.InitialValue',nvtInteger) then
-                TCRC32CustomHash(fHasher).InitialValue := TCRC32(Params.IntegerValue['TCRC32LayerReader.InitialValue']);
-              If Params.Exists('TCRC32LayerReader.ReflectIn',nvtBool) then
-                TCRC32CustomHash(fHasher).ReflectIn := Params.BoolValue['TCRC32LayerReader.ReflectIn'];
-              If Params.Exists('TCRC32LayerReader.ReflectOut',nvtBool) then
-                TCRC32CustomHash(fHasher).ReflectOut := Params.BoolValue['TCRC32LayerReader.ReflectOut'];
-              If Params.Exists('TCRC32LayerReader.XOROutValue',nvtInteger) then
-                TCRC32CustomHash(fHasher).XOROutValue := TCRC32(Params.IntegerValue['TCRC32LayerReader.XOROutValue']);
+                TCRC32CustomHash(fHasher).LoadPreset(Params.IntegerValue['TCRC32LayerReader.PresetIndex'])
+              else If Params.Exists('TCRC32LayerReader.PresetName',nvtString) then
+                TCRC32CustomHash(fHasher).LoadPreset(Params.StringValue['TCRC32LayerReader.PresetName'])
+              else
+                begin
+                  If Params.Exists('TCRC32LayerReader.Polynomial',nvtInteger) then
+                    TCRC32CustomHash(fHasher).CRC32Poly := TCRC32Sys(Params.IntegerValue['TCRC32LayerReader.Polynomial'])
+                  else If Params.Exists('TCRC32LayerReader.PolynomialRef',nvtInteger) then
+                    TCRC32CustomHash(fHasher).CRC32PolyRef := TCRC32Sys(Params.IntegerValue['TCRC32LayerReader.PolynomialRef']);
+                  If Params.Exists('TCRC32LayerReader.InitialValue',nvtInteger) then
+                    TCRC32CustomHash(fHasher).InitialValue := TCRC32(Params.IntegerValue['TCRC32LayerReader.InitialValue']);
+                  If Params.Exists('TCRC32LayerReader.ReflectIn',nvtBool) then
+                    TCRC32CustomHash(fHasher).ReflectIn := Params.BoolValue['TCRC32LayerReader.ReflectIn'];
+                  If Params.Exists('TCRC32LayerReader.ReflectOut',nvtBool) then
+                    TCRC32CustomHash(fHasher).ReflectOut := Params.BoolValue['TCRC32LayerReader.ReflectOut'];
+                  If Params.Exists('TCRC32LayerReader.XOROutValue',nvtInteger) then
+                    TCRC32CustomHash(fHasher).XOROutValue := TCRC32(Params.IntegerValue['TCRC32LayerReader.XOROutValue']);
+                end;
             end;
       else
         fHasher := TCRC32Hash.Create;
@@ -139,8 +136,8 @@ SetLength(Result,9);
 Result[0] := LayerObjectParam('TCRC32LayerReader.Class',nvtInteger,[loprConstructor],'');
 Result[1] := LayerObjectParam('TCRC32LayerReader.PresetIndex',nvtInteger,[loprConstructor],'');
 Result[2] := LayerObjectParam('TCRC32LayerReader.PresetName',nvtInteger,[loprConstructor],'');
-Result[3] := LayerObjectParam('TCRC32LayerReader.CRC32Poly',nvtInteger,[loprConstructor],'');
-Result[4] := LayerObjectParam('TCRC32LayerReader.CRC32PolyRef',nvtInteger,[loprConstructor],'');
+Result[3] := LayerObjectParam('TCRC32LayerReader.Polynomial',nvtInteger,[loprConstructor],'');
+Result[4] := LayerObjectParam('TCRC32LayerReader.PolynomialRef',nvtInteger,[loprConstructor],'');
 Result[5] := LayerObjectParam('TCRC32LayerReader.InitialValue',nvtInteger,[loprConstructor],'');
 Result[6] := LayerObjectParam('TCRC32LayerReader.ReflectIn',nvtBool,[loprConstructor],'');
 Result[7] := LayerObjectParam('TCRC32LayerReader.ReflectOut',nvtBool,[loprConstructor],'');
