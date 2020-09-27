@@ -1,4 +1,4 @@
-unit LSStopLayer;
+unit LayeredStream_StopLayer;
 
 interface
 

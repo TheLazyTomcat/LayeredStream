@@ -1,4 +1,4 @@
-unit LSNotifyLayer;
+unit LayeredStream_NotifyLayer;
 
 interface
 

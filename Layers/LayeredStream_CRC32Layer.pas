@@ -1,4 +1,4 @@
-unit LSCRC32Layer;
+unit LayeredStream_CRC32Layer;
 
 interface
 

@@ -1,4 +1,4 @@
-unit LSPassthroughLayer;
+unit LayeredStream_PassthroughLayer;
 
 interface
 

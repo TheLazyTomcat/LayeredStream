@@ -1,4 +1,4 @@
-unit LSStatLayer;
+unit LayeredStream_StatLayer;
 
 interface
 

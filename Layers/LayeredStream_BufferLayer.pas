@@ -1,4 +1,4 @@
-unit LSBufferLayer;
+unit LayeredStream_BufferLayer;
 
 interface
 
