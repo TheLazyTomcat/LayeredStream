@@ -16,6 +16,7 @@ type
   ELSException = class(Exception);
 
   ELSIndexOutOfBounds    = class(ELSException);
+  ELSInvalidLayer        = class(ELSException);
   ELSInvalidConnection   = class(ELSException);
   ELSLayerIntegrityError = class(ELSException);
 
@@ -262,8 +263,6 @@ type
     Function WriteOut(const Buffer; Size: LongInt): LongInt; virtual;
     Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
     Function SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
-    procedure FlushReaders; virtual;    // flushed from top to botom
-    procedure FlushWriters; virtual;    // -//-
     procedure InitializeLayer(Index: Integer); virtual;
     procedure FinalizeLayer(Index: Integer); virtual;
     procedure ConnectLayer(Index: Integer); virtual;
@@ -278,7 +277,7 @@ type
     Function LowIndex: Integer; virtual;
     Function HighIndex: Integer; virtual;
     Function CheckIndex(Index: Integer): Boolean; virtual;
-    Function IndexOf(const LayerName: String): Integer; overload; virtual;    // case sensitive!
+    Function IndexOf(const LayerName: String): Integer; overload; virtual;    // case insensitive
     Function IndexOf(LayerObjectClass: TLSLayerObjectClass): Integer; overload; virtual;
     Function IndexOf(LayerObject: TLSLayerObjectBase): Integer; overload; virtual;
     Function Find(const LayerName: String; out Index: Integer): Boolean; overload; virtual;
@@ -296,18 +295,33 @@ type
     procedure Delete(Index: Integer); virtual;
     procedure Clear; virtual;
     // layers methods
-    procedure Init; overload; virtual;  // initilizes all layers from first to last
-    procedure Final; overload; virtual; // finalizes all layers from last to first
-    procedure Flush; overload; virtual; // flushes all layers according to mode (FlushReaders, FlushWriters)
+    procedure Init; overload; virtual;    // initilizes all layers from first to last
     procedure Init(Index: Integer; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure Init(const LayerName: String; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure Final; overload; virtual;   // finalizes all layers from last to first
     procedure Final(Index: Integer); overload; virtual;
+    procedure Final(const LayerName: String); overload; virtual;
+    procedure Flush; overload; virtual;   // flushes all layers according to mode (FlushReaders, FlushWriters)    
     procedure Flush(Index: Integer); overload; virtual;
-    procedure InitReader(Index: Integer; Params: TSimpleNamedValues = nil); virtual;
-    procedure InitWriter(Index: Integer; Params: TSimpleNamedValues = nil); virtual;
-    procedure FinalReader(Index: Integer); virtual;
-    procedure FinalWriter(Index: Integer); virtual;
-    procedure FlushReader(Index: Integer); virtual;
-    procedure FlushWriter(Index: Integer); virtual;
+    procedure Flush(const LayerName: String); overload; virtual;
+    procedure InitReaders; virtual;
+    procedure InitReader(Index: Integer; Params: TSimpleNamedValues = nil); overload; virtual;
+    procedure InitReader(const LayerName: String; Params: TSimpleNamedValues = nil); overload; virtual;
+    procedure InitWriters; virtual;
+    procedure InitWriter(Index: Integer; Params: TSimpleNamedValues = nil); overload; virtual;
+    procedure InitWriter(const LayerName: String; Params: TSimpleNamedValues = nil); overload; virtual;
+    procedure FinalReaders; virtual;
+    procedure FinalReader(Index: Integer); overload; virtual;
+    procedure FinalReader(const LayerName: String); overload; virtual;
+    procedure FinalWriters; virtual;
+    procedure FinalWriter(Index: Integer); overload; virtual;
+    procedure FinalWriter(const LayerName: String); overload; virtual;
+    procedure FlushReaders; virtual;  // flushed from top to botom
+    procedure FlushReader(Index: Integer); overload; virtual;
+    procedure FlushReader(const LayerName: String); overload; virtual;
+    procedure FlushWriters; virtual;  // flushed from top to botom
+    procedure FlushWriter(Index: Integer); overload; virtual;
+    procedure FlushWriter(const LayerName: String); overload; virtual;
     // stream methods
     Function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function Read(var Buffer; Count: LongInt): LongInt; override;
@@ -320,7 +334,7 @@ type
     property Layers[Index: Integer]: TLSLayer read GetLayer; default;
     property LayerNames[Index: Integer]: String read GetLayerName write SetLayerName;
     property LayerActive[Index: Integer]: Boolean read GetLayerActive write SetLayerActive;
-  end;      
+  end;
 
 implementation
 
@@ -633,7 +647,7 @@ If CheckIndex(Index) then
     If fLayers[Index].Reader.Active = fLayers[Index].Writer.Active then
       Result := fLayers[Index].Reader.Active
     else
-      raise ELSLayerIntegrityError.CreateFmt('TLayeredStream.GetLayerActive: Layer #%d active setting mismatch.',[Index]);
+      raise ELSLayerIntegrityError.CreateFmt('TLayeredStream.GetLayerActive: Layer #%d active state mismatch.',[Index]);
   end
 else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.GetLayerActive: Index (%d) out of bounds.',[Index]);
 end;
@@ -729,26 +743,6 @@ end;
 Function TLayeredStream.SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Result := fTarget.Seek(Offset,Origin);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TLayeredStream.FlushReaders;
-var
-  i:  Integer;
-begin
-For i := HighIndex downto LowIndex do
-  fLayers[i].Reader.Flush;
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TLayeredStream.FlushWriters;
-var
-  i:  Integer;
-begin
-For i := HighIndex downto LowIndex do
-  fLayers[i].Writer.Flush;
 end;
 
 //------------------------------------------------------------------------------
@@ -921,7 +915,7 @@ var
 begin
 Result := -1;
 For i := LowIndex to HighIndex do
-  If AnsiSameStr(fLayers[i].Name,LayerName) then
+  If AnsiSameText(fLayers[i].Name,LayerName) then
     begin
       Result := i;
       Break{For i};
@@ -1118,6 +1112,33 @@ For i := LowIndex to HighIndex do
   end;
 end;
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Init(Index: Integer; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+begin
+If CheckIndex(Index) then
+  begin
+    fLayers[Index].Reader.Init(ReaderParams);
+    fLayers[Index].Writer.Init(WriterParams);
+  end
+else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Init: Index (%d) out of bounds.',[Index]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Init(const LayerName: String; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+var
+  Index:  Integer;
+begin
+Index := IndexOf(LayerName);
+If CheckIndex(Index) then
+  begin
+    fLayers[Index].Reader.Init(ReaderParams);
+    fLayers[Index].Writer.Init(WriterParams);
+  end
+else raise ELSInvalidLayer.CreateFmt('TLayeredStream.Init: Layer "%s" not found.',[LayerName]);
+end;
+
 //------------------------------------------------------------------------------
 
 procedure TLayeredStream.Final;
@@ -1129,6 +1150,33 @@ For i := HighIndex downto LowIndex do
     fLayers[i].Reader.Final;
     fLayers[i].Writer.Final;
   end;
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Final(Index: Integer);
+begin
+If CheckIndex(Index) then
+  begin
+    fLayers[Index].Reader.Final;
+    fLayers[Index].Writer.Final;
+  end
+else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Final: Index (%d) out of bounds.',[Index]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Final(const LayerName: String);
+var
+  Index:  Integer;
+begin
+Index := IndexOf(LayerName);
+If CheckIndex(Index) then
+  begin
+    fLayers[Index].Reader.Final;
+    fLayers[Index].Writer.Final;
+  end
+else raise ELSInvalidLayer.CreateFmt('TLayeredStream.Final: Layer "%s" not found.',[LayerName]);
 end;
 
 //------------------------------------------------------------------------------
@@ -1144,31 +1192,7 @@ else
 end;
 end;
 
-//------------------------------------------------------------------------------
-
-procedure TLayeredStream.Init(Index: Integer; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
-begin
-If CheckIndex(Index) then
-  begin
-    fLayers[Index].Reader.Init(ReaderParams);
-    fLayers[Index].Writer.Init(WriterParams);
-  end
-else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Init: Index (%d) out of bounds.',[Index]);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TLayeredStream.Final(Index: Integer);
-begin
-If CheckIndex(Index) then
-  begin
-    fLayers[Index].Reader.Final;
-    fLayers[Index].Writer.Final;
-  end
-else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Final: Index (%d) out of bounds.',[Index]);
-end;
-
-//------------------------------------------------------------------------------
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 procedure TLayeredStream.Flush(Index: Integer);
 begin
@@ -1180,6 +1204,31 @@ If CheckIndex(Index) then
 else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Flush: Index (%d) out of bounds.',[Index]);
 end;
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Flush(const LayerName: String);
+var
+  Index:  Integer;
+begin
+Index := IndexOf(LayerName);
+If CheckIndex(Index) then
+  begin
+    fLayers[Index].Reader.Flush;
+    fLayers[Index].Writer.Flush;
+  end
+else raise ELSInvalidLayer.CreateFmt('TLayeredStream.Flush: Layer "%s" not found.',[LayerName]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.InitReaders;
+var
+  i:  Integer;
+begin
+For i := LowIndex to HighIndex do
+  fLayers[i].Reader.Init;
+end;
+
 //------------------------------------------------------------------------------
 
 procedure TLayeredStream.InitReader(Index: Integer; Params: TSimpleNamedValues = nil);
@@ -1188,6 +1237,29 @@ If CheckIndex(Index) then
   fLayers[Index].Reader.Init(Params)
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.InitReader: Index (%d) out of bounds.',[Index]);
+end;
+ 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.InitReader(const LayerName: String; Params: TSimpleNamedValues = nil);
+var
+  Index:  Integer;
+begin
+Index := IndexOf(LayerName);
+If CheckIndex(Index) then
+  fLayers[Index].Reader.Init(Params)
+else
+  raise ELSInvalidLayer.CreateFmt('TLayeredStream.InitReader: Layer "%s" not found.',[LayerName]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.InitWriters;
+var
+  i:  Integer;
+begin
+For i := LowIndex to HighIndex do
+  fLayers[i].Writer.Init;
 end;
 
 //------------------------------------------------------------------------------
@@ -1198,6 +1270,29 @@ If CheckIndex(Index) then
   fLayers[Index].Writer.Init(Params)
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.InitWriter: Index (%d) out of bounds.',[Index]);
+end;
+  
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.InitWriter(const LayerName: String; Params: TSimpleNamedValues = nil);
+var
+  Index:  Integer;
+begin
+Index := IndexOf(LayerName);
+If CheckIndex(Index) then
+  fLayers[Index].Writer.Init(Params)
+else
+  raise ELSInvalidLayer.CreateFmt('TLayeredStream.InitWriter: Layer "%s" not found.',[LayerName]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.FinalReaders;
+var
+  i:  Integer;
+begin
+For i := HighIndex downto LowIndex do
+  fLayers[i].Reader.Final;
 end;
 
 //------------------------------------------------------------------------------
@@ -1210,6 +1305,29 @@ else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.FinalReader: Index (%d) out of bounds.',[Index]);
 end;
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.FinalReader(const LayerName: String);
+var
+  Index:  Integer;
+begin
+Index := IndexOf(LayerName);
+If CheckIndex(Index) then
+  fLayers[Index].Reader.Final
+else
+  raise ELSInvalidLayer.CreateFmt('TLayeredStream.FinalReader: Layer "%s" not found.',[LayerName]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.FinalWriters;
+var
+  i:  Integer;
+begin
+For i := HighIndex downto LowIndex do
+  fLayers[i].Writer.Final;
+end;
+
 //------------------------------------------------------------------------------
 
 procedure TLayeredStream.FinalWriter(Index: Integer);
@@ -1218,6 +1336,29 @@ If CheckIndex(Index) then
   fLayers[Index].Writer.Final
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.FinalWriter: Index (%d) out of bounds.',[Index]);
+end;
+ 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.FinalWriter(const LayerName: String);
+var
+  Index:  Integer;
+begin
+Index := IndexOf(LayerName);
+If CheckIndex(Index) then
+  fLayers[Index].Writer.Final
+else
+  raise ELSInvalidLayer.CreateFmt('TLayeredStream.FinalWriter: Layer "%s" not found.',[LayerName]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.FlushReaders;
+var
+  i:  Integer;
+begin
+For i := HighIndex downto LowIndex do
+  fLayers[i].Reader.Flush;
 end;
 
 //------------------------------------------------------------------------------
@@ -1229,6 +1370,29 @@ If CheckIndex(Index) then
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.FlushReader: Index (%d) out of bounds.',[Index]);
 end;
+  
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.FlushReader(const LayerName: String);
+var
+  Index:  Integer;
+begin
+Index := IndexOf(LayerName);
+If CheckIndex(Index) then
+  fLayers[Index].Reader.Flush
+else
+  raise ELSInvalidLayer.CreateFmt('TLayeredStream.FlushReader: Layer "%s" not found.',[LayerName]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.FlushWriters;
+var
+  i:  Integer;
+begin
+For i := HighIndex downto LowIndex do
+  fLayers[i].Writer.Flush;
+end;
 
 //------------------------------------------------------------------------------
 
@@ -1238,6 +1402,19 @@ If CheckIndex(Index) then
   fLayers[Index].Writer.Flush
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.FlushWriter: Index (%d) out of bounds.',[Index]);
+end;
+   
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.FlushWriter(const LayerName: String);
+var
+  Index:  Integer;
+begin
+Index := IndexOf(LayerName);
+If CheckIndex(Index) then
+  fLayers[Index].Writer.Flush
+else
+  raise ELSInvalidLayer.CreateFmt('TLayeredStream.FlushWriter: Layer "%s" not found.',[LayerName]);
 end;
 
 //------------------------------------------------------------------------------
