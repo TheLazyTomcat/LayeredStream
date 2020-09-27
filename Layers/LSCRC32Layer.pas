@@ -26,7 +26,7 @@ type
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); overload; override;
     procedure Final; override;
@@ -123,9 +123,9 @@ end;
     TCRC32LayerReader - public methods
 -------------------------------------------------------------------------------}
 
-class Function TCRC32LayerReader.LayerObjectKind: TLSLayerObjectKind;
+class Function TCRC32LayerReader.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobPassthrough,lobObserver,lobNeedsInit,lobNeedsFinal];
+Result := [lopPassthrough,lopObserver,lopNeedsInit,lopNeedsFinal];
 end;
 
 //------------------------------------------------------------------------------

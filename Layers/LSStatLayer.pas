@@ -30,7 +30,7 @@ type
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure ClearStats; virtual;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); overload; override;
     property Counter: UInt64 read fCounter;
@@ -57,7 +57,7 @@ type
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure ClearStats; virtual;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); overload; override;
     property Counter: UInt64 read fCounter;
@@ -128,9 +128,9 @@ end;
     TStatLayerReader - public methods
 -------------------------------------------------------------------------------}
 
-class Function TStatLayerReader.LayerObjectKind: TLSLayerObjectKind;
+class Function TStatLayerReader.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobPassthrough,lobObserver];
+Result := [lopPassthrough,lopObserver];
 end;
 
 //------------------------------------------------------------------------------
@@ -221,9 +221,9 @@ end;
     TStatLayerWriter - public methods
 -------------------------------------------------------------------------------}
 
-class Function TStatLayerWriter.LayerObjectKind: TLSLayerObjectKind;
+class Function TStatLayerWriter.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobPassthrough,lobObserver];
+Result := [lopPassthrough,lopObserver];
 end;
 
 //------------------------------------------------------------------------------

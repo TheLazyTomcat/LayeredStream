@@ -28,7 +28,7 @@ type
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Flush; override;
     property Memory: Pointer read fMemory;
@@ -56,7 +56,7 @@ type
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Flush; override;
     property Memory: Pointer read fMemory;
@@ -203,9 +203,9 @@ end;
     TBufferLayerReader - public methods
 -------------------------------------------------------------------------------}
 
-class Function TBufferLayerReader.LayerObjectKind: TLSLayerObjectKind;
+class Function TBufferLayerReader.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobAccumulator];
+Result := [lopPassthrough,lopDelayer];
 end;
 
 //------------------------------------------------------------------------------
@@ -382,9 +382,9 @@ end;
     TBufferLayerWriter - public methods
 -------------------------------------------------------------------------------}
 
-class Function TBufferLayerWriter.LayerObjectKind: TLSLayerObjectKind;
+class Function TBufferLayerWriter.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobAccumulator];
+Result := [lopPassthrough,lopDelayer];
 end;
 
 //------------------------------------------------------------------------------

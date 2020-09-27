@@ -31,7 +31,7 @@ type
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); overload; override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
@@ -56,7 +56,7 @@ type
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); overload; override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
@@ -119,9 +119,9 @@ end;
     TStopLayerReader - public methods
 -------------------------------------------------------------------------------}
 
-class Function TStopLayerReader.LayerObjectKind: TLSLayerObjectKind;
+class Function TStopLayerReader.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobConsumer];
+Result := [lopStopper];
 end;
 
 //------------------------------------------------------------------------------
@@ -202,9 +202,9 @@ end;
     TStopLayerWriter - public methods
 -------------------------------------------------------------------------------}
 
-class Function TStopLayerWriter.LayerObjectKind: TLSLayerObjectKind;
+class Function TStopLayerWriter.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobConsumer];
+Result := [lopStopper];
 end;
 
 //------------------------------------------------------------------------------

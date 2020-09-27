@@ -45,7 +45,7 @@ type
     procedure DoBeforeRead; virtual;
     procedure DoAfterRead; virtual;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     // seek notification
     property OnBeforeSeekEvent: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
     property OnBeforeSeekCallback: TNotifyCallback read fBeforeSeekCallback write fBeforeSeekCallback;
@@ -105,7 +105,7 @@ type
     procedure DoBeforeWrite; virtual;
     procedure DoAfterWrite; virtual;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     // seek notification
     property OnBeforeSeekEvent: TNotifyEvent read fBeforeSeekEvent write fBeforeSeekEvent;
     property OnBeforeSeekCallback: TNotifyCallback read fBeforeSeekCallback write fBeforeSeekCallback;
@@ -212,9 +212,9 @@ end;
     TNotifyLayerWriter - public methods
 -------------------------------------------------------------------------------}
 
-class Function TNotifyLayerReader.LayerObjectKind: TLSLayerObjectKind;
+class Function TNotifyLayerReader.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobPassthrough,lobObserver];
+Result := [lopPassthrough,lopObserver];
 end;
 
 
@@ -298,9 +298,9 @@ end;
     TNotifyLayerWriter - public methods
 -------------------------------------------------------------------------------}
 
-class Function TNotifyLayerWriter.LayerObjectKind: TLSLayerObjectKind;
+class Function TNotifyLayerWriter.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobPassthrough,lobObserver];
+Result := [lopPassthrough,lopObserver];
 end;
 
 end.

@@ -21,7 +21,7 @@ type
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
   end;
 
 {===============================================================================
@@ -38,7 +38,7 @@ type
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
   public
-    class Function LayerObjectKind: TLSLayerObjectKind; override;
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
   end;
 
 implementation
@@ -71,9 +71,9 @@ end;
     TPassthroughLayerReader - public methods
 -------------------------------------------------------------------------------}
 
-class Function TPassthroughLayerReader.LayerObjectKind: TLSLayerObjectKind;
+class Function TPassthroughLayerReader.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobPassthrough];
+Result := [lopPassthrough];
 end;
 
 
@@ -105,9 +105,9 @@ end;
     TPassthroughLayerWriter - public methods
 -------------------------------------------------------------------------------}
 
-class Function TPassthroughLayerWriter.LayerObjectKind: TLSLayerObjectKind;
+class Function TPassthroughLayerWriter.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lobPassthrough];
+Result := [lopPassthrough];
 end;
 
 end.
