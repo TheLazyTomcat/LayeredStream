@@ -128,7 +128,7 @@ end;
 
 class Function TCRC32LayerReader.LayerObjectKind: TLSLayerObjectKind;
 begin
-Result := [lobPassthrough,lobObserver];
+Result := [lobPassthrough,lobObserver,lobNeedsInit,lobNeedsFinal];
 end;
 
 //------------------------------------------------------------------------------
@@ -143,7 +143,7 @@ Result[3] := LayerObjectParam('TCRC32LayerReader.CRC32Poly',nvtInteger,[loprCons
 Result[4] := LayerObjectParam('TCRC32LayerReader.CRC32PolyRef',nvtInteger,[loprConstructor],'');
 Result[5] := LayerObjectParam('TCRC32LayerReader.InitialValue',nvtInteger,[loprConstructor],'');
 Result[6] := LayerObjectParam('TCRC32LayerReader.ReflectIn',nvtBool,[loprConstructor],'');
-Result[7] := LayerObjectParam('TCRC32LayerReader.ReflectOut',nvtBool,[loprConstructor],'')
+Result[7] := LayerObjectParam('TCRC32LayerReader.ReflectOut',nvtBool,[loprConstructor],'');
 Result[8] := LayerObjectParam('TCRC32LayerReader.XOROutValue',nvtInteger,[loprConstructor],'');
 end;
 
