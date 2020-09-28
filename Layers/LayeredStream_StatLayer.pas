@@ -32,7 +32,7 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); overload; override;
+    procedure Init(Params: TSimpleNamedValues); override;
     property Counter: UInt64 read fCounter;
     property ByteCounters: TStatsPerByte read fByteCounters;
   end;
@@ -59,7 +59,7 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); overload; override;
+    procedure Init(Params: TSimpleNamedValues); override;
     property Counter: UInt64 read fCounter;
     property ByteCounters: TStatsPerByte read fByteCounters;
   end;
@@ -138,8 +138,8 @@ end;
 class Function TStatLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('TStatLayerReader.FullStats',nvtBool,[loprConstructor,loprInitializer],'');
-Result[1] := LayerObjectParam('TStatLayerReader.KeepStats',nvtBool,[loprInitializer],'');
+Result[0] := LayerObjectParam('TStatLayerReader.FullStats',nvtBool,[loprConstructor,loprInitializer]);
+Result[1] := LayerObjectParam('TStatLayerReader.KeepStats',nvtBool,[loprInitializer]);
 end;
 
 //------------------------------------------------------------------------------
@@ -231,8 +231,8 @@ end;
 class Function TStatLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('TStatLayerWriter.FullStats',nvtBool,[loprConstructor,loprInitializer],'');
-Result[1] := LayerObjectParam('TStatLayerWriter.KeepStats',nvtBool,[loprInitializer],'');
+Result[0] := LayerObjectParam('TStatLayerWriter.FullStats',nvtBool,[loprConstructor,loprInitializer]);
+Result[1] := LayerObjectParam('TStatLayerWriter.KeepStats',nvtBool,[loprInitializer]);
 end;
 
 //------------------------------------------------------------------------------

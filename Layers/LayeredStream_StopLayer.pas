@@ -33,7 +33,7 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); overload; override;
+    procedure Init(Params: TSimpleNamedValues); override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
     property SilentStop: Boolean read fSilentStop write fSilentStop;
   end;
@@ -58,7 +58,7 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); overload; override;
+    procedure Init(Params: TSimpleNamedValues); override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
     property SilentStop: Boolean read fSilentStop write fSilentStop;
   end;
@@ -129,8 +129,8 @@ end;
 class Function TStopLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('TStopLayerReader.StopSeek',nvtBool,[loprConstructor,loprInitializer],'');
-Result[1] := LayerObjectParam('TStopLayerReader.SilentStop',nvtBool,[loprConstructor,loprInitializer],'');
+Result[0] := LayerObjectParam('TStopLayerReader.StopSeek',nvtBool,[loprConstructor,loprInitializer]);
+Result[1] := LayerObjectParam('TStopLayerReader.SilentStop',nvtBool,[loprConstructor,loprInitializer]);
 end;
 
 //------------------------------------------------------------------------------
@@ -212,8 +212,8 @@ end;
 class Function TStopLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('TStopLayerWriter.StopSeek',nvtBool,[loprConstructor,loprInitializer],'');
-Result[1] := LayerObjectParam('TStopLayerWriter.SilentStop',nvtBool,[loprConstructor,loprInitializer],'');
+Result[0] := LayerObjectParam('TStopLayerWriter.StopSeek',nvtBool,[loprConstructor,loprInitializer]);
+Result[1] := LayerObjectParam('TStopLayerWriter.SilentStop',nvtBool,[loprConstructor,loprInitializer]);
 end;
 
 //------------------------------------------------------------------------------

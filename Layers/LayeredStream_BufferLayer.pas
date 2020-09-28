@@ -213,7 +213,7 @@ end;
 class Function TBufferLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
-Result[0] := LayerObjectParam('TBufferLayerReader.Size',nvtInteger,[loprConstructor],'');
+Result[0] := LayerObjectParam('TBufferLayerReader.Size',nvtInteger,[loprConstructor]);
 end;
 
 //------------------------------------------------------------------------------
@@ -273,42 +273,31 @@ else If Size < fSize then
     write what is buffered, when successful, buffer new data, when unsuccessful,
     buffer at least part of the new data
   }
-    If fUsed > 0 then
+    BytesWritten := WriteOut(fMemory^,fUsed);
+    If BytesWritten < fUsed then
       begin
-        // some data are buffered
-        BytesWritten := WriteOut(fMemory^,fUsed);
-        If BytesWritten < fUsed then
+        // only part of the buffered data was written, buffer at least part of new data
+        Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fUsed - BytesWritten);
+        fUsed := fUsed - BytesWritten;
+        If Size <= (fSize - fUsed) then
           begin
-            // only part of the buffered data was written, buffer at least part of new data
-            Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fUsed - BytesWritten);
-            fUsed := fUsed - BytesWritten;
-            If Size <= (fSize - fUsed) then
-              begin
-                // whole new data will now fit into free space - buffer them
-                Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
-                fUsed := fUsed + Size;
-                Result := Size;
-              end
-            else
-              begin
-                // only part of the new data can fit
-                BytesToWrite := fSize - fUsed;
-                Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,BytesToWrite);
-                fUsed := fSize;
-                Result := BytesToWrite;
-              end;
+            // whole new data will now fit into free space - buffer them
+            Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
+            fUsed := fUsed + Size;
+            Result := Size;
           end
         else
           begin
-            // all buffered data were written, buffer new data
-            Move(Buffer,fMemory^,Size);
-            fUsed := Size;
-            Result := Size;
+            // only part of the new data can fit
+            BytesToWrite := fSize - fUsed;
+            Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,BytesToWrite);
+            fUsed := fSize;
+            Result := BytesToWrite;
           end;
       end
     else
       begin
-        // nothing is buffered (this should never occur here, but whatever...)
+        // all buffered data were written, buffer new data
         Move(Buffer,fMemory^,Size);
         fUsed := Size;
         Result := Size;
@@ -392,7 +381,7 @@ end;
 class Function TBufferLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
-Result[0] := LayerObjectParam('TBufferLayerWriter.Size',nvtInteger,[loprConstructor],'');
+Result[0] := LayerObjectParam('TBufferLayerWriter.Size',nvtInteger,[loprConstructor]);
 end;
 
 //------------------------------------------------------------------------------

@@ -28,7 +28,7 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); overload; override;
+    procedure Init(Params: TSimpleNamedValues); override;
     procedure Final; override;
     property Hasher: TCRC32BaseHash read fHasher;
     property CRC32: TCRC32 read GetCRC32;
@@ -55,7 +55,7 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); overload; override;
+    procedure Init(Params: TSimpleNamedValues); override;
     procedure Final; override;
     property Hasher: TCRC32BaseHash read fHasher;
     property CRC32: TCRC32 read GetCRC32;
@@ -168,15 +168,15 @@ end;
 class Function TCRC32LayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,9);
-Result[0] := LayerObjectParam('TCRC32LayerReader.Class',nvtInteger,[loprConstructor],'');
-Result[1] := LayerObjectParam('TCRC32LayerReader.PresetIndex',nvtInteger,[loprConstructor],'');
-Result[2] := LayerObjectParam('TCRC32LayerReader.PresetName',nvtInteger,[loprConstructor],'');
-Result[3] := LayerObjectParam('TCRC32LayerReader.Polynomial',nvtInteger,[loprConstructor],'');
-Result[4] := LayerObjectParam('TCRC32LayerReader.PolynomialRef',nvtInteger,[loprConstructor],'');
-Result[5] := LayerObjectParam('TCRC32LayerReader.InitialValue',nvtInteger,[loprConstructor],'');
-Result[6] := LayerObjectParam('TCRC32LayerReader.ReflectIn',nvtBool,[loprConstructor],'');
-Result[7] := LayerObjectParam('TCRC32LayerReader.ReflectOut',nvtBool,[loprConstructor],'');
-Result[8] := LayerObjectParam('TCRC32LayerReader.XOROutValue',nvtInteger,[loprConstructor],'');
+Result[0] := LayerObjectParam('TCRC32LayerReader.Class',nvtInteger,[loprConstructor]);
+Result[1] := LayerObjectParam('TCRC32LayerReader.PresetIndex',nvtInteger,[loprConstructor]);
+Result[2] := LayerObjectParam('TCRC32LayerReader.PresetName',nvtInteger,[loprConstructor]);
+Result[3] := LayerObjectParam('TCRC32LayerReader.Polynomial',nvtInteger,[loprConstructor]);
+Result[4] := LayerObjectParam('TCRC32LayerReader.PolynomialRef',nvtInteger,[loprConstructor]);
+Result[5] := LayerObjectParam('TCRC32LayerReader.InitialValue',nvtInteger,[loprConstructor]);
+Result[6] := LayerObjectParam('TCRC32LayerReader.ReflectIn',nvtBool,[loprConstructor]);
+Result[7] := LayerObjectParam('TCRC32LayerReader.ReflectOut',nvtBool,[loprConstructor]);
+Result[8] := LayerObjectParam('TCRC32LayerReader.XOROutValue',nvtInteger,[loprConstructor]);
 end;
 
 //------------------------------------------------------------------------------
@@ -262,15 +262,15 @@ end;
 class Function TCRC32LayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,9);
-Result[0] := LayerObjectParam('TCRC32LayerWriter.Class',nvtInteger,[loprConstructor],'');
-Result[1] := LayerObjectParam('TCRC32LayerWriter.PresetIndex',nvtInteger,[loprConstructor],'');
-Result[2] := LayerObjectParam('TCRC32LayerWriter.PresetName',nvtInteger,[loprConstructor],'');
-Result[3] := LayerObjectParam('TCRC32LayerWriter.Polynomial',nvtInteger,[loprConstructor],'');
-Result[4] := LayerObjectParam('TCRC32LayerWriter.PolynomialRef',nvtInteger,[loprConstructor],'');
-Result[5] := LayerObjectParam('TCRC32LayerWriter.InitialValue',nvtInteger,[loprConstructor],'');
-Result[6] := LayerObjectParam('TCRC32LayerWriter.ReflectIn',nvtBool,[loprConstructor],'');
-Result[7] := LayerObjectParam('TCRC32LayerWriter.ReflectOut',nvtBool,[loprConstructor],'');
-Result[8] := LayerObjectParam('TCRC32LayerWriter.XOROutValue',nvtInteger,[loprConstructor],'');
+Result[0] := LayerObjectParam('TCRC32LayerWriter.Class',nvtInteger,[loprConstructor]);
+Result[1] := LayerObjectParam('TCRC32LayerWriter.PresetIndex',nvtInteger,[loprConstructor]);
+Result[2] := LayerObjectParam('TCRC32LayerWriter.PresetName',nvtInteger,[loprConstructor]);
+Result[3] := LayerObjectParam('TCRC32LayerWriter.Polynomial',nvtInteger,[loprConstructor]);
+Result[4] := LayerObjectParam('TCRC32LayerWriter.PolynomialRef',nvtInteger,[loprConstructor]);
+Result[5] := LayerObjectParam('TCRC32LayerWriter.InitialValue',nvtInteger,[loprConstructor]);
+Result[6] := LayerObjectParam('TCRC32LayerWriter.ReflectIn',nvtBool,[loprConstructor]);
+Result[7] := LayerObjectParam('TCRC32LayerWriter.ReflectOut',nvtBool,[loprConstructor]);
+Result[8] := LayerObjectParam('TCRC32LayerWriter.XOROutValue',nvtInteger,[loprConstructor]);
 end;
 
 //------------------------------------------------------------------------------
