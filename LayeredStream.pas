@@ -113,7 +113,7 @@ type
 {
   types used to return information about accepted parameters
 }
-  TLSLayerObjectParamReceiver = (loprConstructor,loprInitializer);
+  TLSLayerObjectParamReceiver = (loprConstructor,loprInitializer,loprUpdater); {$message 'implementa updaters'}
 
   TLSLayerObjectParamReceivers = set of TLSLayerObjectParamReceiver;
 
@@ -149,8 +149,19 @@ type
     Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;    
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual; abstract;
     Function SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
-    procedure InternalInit; virtual;  // called by layered stream after the layer is set up, do not call yourself!
-    procedure InternalFinal; virtual; // called by layered stream before the layer is removed, calls flush, do not call yourself!
+  {
+    InternalInit is called by a layered stream just after the object is set up,
+    that is after the connections and counterpart are assigned.
+
+    InternalFinal is called by a layered stream before the object is finalized,
+    that is before disconnecting it and before the counterpart is set to nil.
+
+    Note that InternalFinal calls Flush.
+
+    Do not call these routines yourself, they are only for internal use!
+  }
+    procedure InternalInit; virtual;
+    procedure InternalFinal; virtual;
     procedure Initialize(Params: TSimpleNamedValues); virtual;
     procedure Finalize; virtual;
     // protected properties
@@ -164,15 +175,19 @@ type
   {
     Note that calling Init or Final is not mandatory, they are here only for
     those layer objects that really do need them (indicated by lopNeedsInit and
-    lopNeedsFinal flags in LayerObjectProperties). Calling init and final on
-    object that does not need it is not considered to be an error.
+    lopNeedsFinal flags in LayerObjectProperties). But calling init and final
+    on object that does not need it is not considered to be an error.
   }
     procedure Init(Params: TSimpleNamedValues = nil); virtual;
-    {$message 'add update or similar'}
-    //procedure Update(Params: TSimpleNamedValues = nil); virtual;
+  {
+    Update is to be used only to update parameters during lifetime of the
+    object where calling init is not possible or desirable.
+    It should not be used as a mean of processing execution.
+  }
+    procedure Update(Params: TSimpleNamedValues = nil); virtual;
+    procedure Flush; virtual;    
     procedure Final; virtual;
-    procedure Flush; virtual;
-    property Counterpart: TLSLayerObjectBase read fCounterpart write SetCounterpart;    
+    property Counterpart: TLSLayerObjectBase read fCounterpart write SetCounterpart;
     property Active: Boolean read fActive write SetActive;
   end;
 
@@ -239,14 +254,14 @@ type
   // for use in constructor...
   TLSLayerConstruct = record
     Name:         String;
-    Reader:       TLSLayerReaderClass;
-    Writer:       TLSLayerWriterClass;
+    ReaderClass:  TLSLayerReaderClass;
+    WriterClass:  TLSLayerWriterClass;
     ReaderParams: TSimpleNamedValues;
     WriterParams: TSimpleNamedValues;
   end;
 
-Function LayerConstruct(const Name: String; Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): TLSLayerConstruct; overload;
-Function LayerConstruct(Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass): TLSLayerConstruct; overload;
+Function LayerConstruct(const Name: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): TLSLayerConstruct; overload;
+Function LayerConstruct(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass): TLSLayerConstruct; overload;
 
 {===============================================================================
     TLayeredStream - class declaration
@@ -283,29 +298,37 @@ type
     constructor Create(Target: TStream); overload;
     constructor Create(Target: TStream; Layers: array of TLSLayerConstruct); overload;
     destructor Destroy; override;
-    // layers list index
+    // layer list methods
     Function LowIndex: Integer; virtual;
     Function HighIndex: Integer; virtual;
     Function CheckIndex(Index: Integer): Boolean; virtual;
+
     Function IndexOf(const LayerName: String): Integer; overload; virtual;    // case insensitive
     Function IndexOf(LayerObjectClass: TLSLayerObjectClass): Integer; overload; virtual;
     Function IndexOf(LayerObject: TLSLayerObjectBase): Integer; overload; virtual;
+
     Function Find(const LayerName: String; out Index: Integer): Boolean; overload; virtual;
     Function Find(LayerObjectClass: TLSLayerObjectClass; out Index: Integer): Boolean; overload; virtual;
     Function Find(LayerObject: TLSLayerObjectBase; out Index: Integer): Boolean; overload; virtual;
-    Function Add(const LayerName: String; Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer; overload; virtual;
-    Function Add(Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer; overload; virtual;
+
+    Function Add(const LayerName: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer; overload; virtual;
+    Function Add(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer; overload; virtual;
     Function Add(LayerConstruct: TLSLayerConstruct): Integer; overload; virtual;
-    procedure Insert(Index: Integer; const LayerName: String; Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
-    procedure Insert(Index: Integer; Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
+
+    procedure Insert(Index: Integer; const LayerName: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure Insert(Index: Integer; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
     procedure Insert(Index: Integer; LayerConstruct: TLSLayerConstruct); overload; virtual;
+
     Function Remove(const LayerName: String): Integer; overload; virtual;
     Function Remove(LayerObjectClass: TLSLayerObjectClass): Integer; overload; virtual;
-    Function Remove(LayerObject: TLSLayerObjectBase): Integer; overload; virtual;  
+    Function Remove(LayerObject: TLSLayerObjectBase): Integer; overload; virtual;
+
     procedure Delete(Index: Integer); virtual;
     procedure Clear; virtual;
     // layers methods
-    Function LayerByName(const LayerName: String): TLSLayer; virtual;
+    Function LayerByName(const LayerName: String): TLSLayer; virtual; // to get index from name, use method IndexOf
+    //procedure Rename(Index: Integer; const NewName: String); overload; virtual;
+    //procedure Rename(const LayerName: String; const NewName: String); overload; virtual;    
   {
     Note that the order of operations should be init - update - flush - final
   }
@@ -318,24 +341,33 @@ type
     procedure Flush; overload; virtual; // flushes all layers according to mode (FlushReaders, FlushWriters)    
     procedure Flush(Index: Integer); overload; virtual;
     procedure Flush(const LayerName: String); overload; virtual;
+
     procedure InitReaders; virtual;
     procedure InitReader(Index: Integer; Params: TSimpleNamedValues = nil); overload; virtual;
     procedure InitReader(const LayerName: String; Params: TSimpleNamedValues = nil); overload; virtual;
     procedure InitWriters; virtual;
     procedure InitWriter(Index: Integer; Params: TSimpleNamedValues = nil); overload; virtual;
     procedure InitWriter(const LayerName: String; Params: TSimpleNamedValues = nil); overload; virtual;
+
     procedure FinalReaders; virtual;
     procedure FinalReader(Index: Integer); overload; virtual;
     procedure FinalReader(const LayerName: String); overload; virtual;
     procedure FinalWriters; virtual;
     procedure FinalWriter(Index: Integer); overload; virtual;
     procedure FinalWriter(const LayerName: String); overload; virtual;
+
     procedure FlushReaders; virtual;  // flushed from top to botom
     procedure FlushReader(Index: Integer); overload; virtual;
     procedure FlushReader(const LayerName: String); overload; virtual;
     procedure FlushWriters; virtual;  // flushed from top to botom
     procedure FlushWriter(Index: Integer); overload; virtual;
     procedure FlushWriter(const LayerName: String); overload; virtual;
+
+    //Function IsActive(Index: Integer): Boolean; overload; virtual;
+    //Function IsActive(const LayerName: String): Boolean; overload; virtual;
+    //procedure Activate(Active: Boolean); overload; virtual;
+    //procedure Activate(Index: Integer, Active: Boolean); overload; virtual;
+    //procedure Activate(const LayerName: String, Active: Boolean); overload; virtual;
     // stream methods
     Function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function Read(var Buffer; Count: LongInt): LongInt; override;
@@ -346,8 +378,9 @@ type
     property OwnsTarget: Boolean read fOwnsTarget write fOwnsTarget;
     property Count: Integer read GetLayerCount;
     property Layers[Index: Integer]: TLSLayer read GetLayer; default;
-    property LayerNames[Index: Integer]: String read GetLayerName write SetLayerName;
-    property LayerActive[Index: Integer]: Boolean read GetLayerActive write SetLayerActive;
+
+    property LayerNames[Index: Integer]: String read GetLayerName write SetLayerName;       {$message 'remove'}
+    property LayerActive[Index: Integer]: Boolean read GetLayerActive write SetLayerActive; {$message 'remove'}
   end;
 
 implementation
@@ -491,7 +524,7 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TLSLayerObjectBase.Final;
+procedure TLSLayerObjectBase.Update(Params: TSimpleNamedValues = nil);
 begin
 // nothing to do
 end;
@@ -499,6 +532,13 @@ end;
 //------------------------------------------------------------------------------
 
 procedure TLSLayerObjectBase.Flush;
+begin
+// nothing to do
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLSLayerObjectBase.Final;
 begin
 // nothing to do
 end;
@@ -595,20 +635,20 @@ end;
     TLayeredStream - Auxiliary functions
 ===============================================================================}
 
-Function LayerConstruct(const Name: String; Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): TLSLayerConstruct;
+Function LayerConstruct(const Name: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): TLSLayerConstruct;
 begin
 Result.Name := Name;
-Result.Reader := Reader;
-Result.Writer := Writer;
+Result.ReaderClass := ReaderClass;
+Result.WriterClass := WriterClass;
 Result.ReaderParams := ReaderParams;
 Result.WriterParams := WriterParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function LayerConstruct(Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass): TLSLayerConstruct;
+Function LayerConstruct(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass): TLSLayerConstruct;
 begin
-Result := LayerConstruct('',Reader,Writer);
+Result := LayerConstruct('',ReaderClass,WriterClass);
 end;
 
 {===============================================================================
@@ -703,7 +743,7 @@ Function TLayeredStream.SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64;
 var
   OldMode:  TLayeredStreamMode;
 begin
-OldMode := ChangeMode(lsmSeek);
+OldMode := ChangeMode(lsmSeek); // calls Flush if necessary
 If Length(fLayers) > 0 then
   begin
     case OldMode of
@@ -885,8 +925,8 @@ SetLength(fLayers,Length(Layers));
 For i := Low(fLayers) to High(fLayers) do
   begin
     fLayers[i].Name := Layers[i].Name;
-    fLayers[i].Reader := Layers[i].Reader.Create(Layers[i].ReaderParams);
-    fLayers[i].Writer := Layers[i].Writer.Create(Layers[i].WriterParams);
+    fLayers[i].Reader := Layers[i].ReaderClass.Create(Layers[i].ReaderParams);
+    fLayers[i].Writer := Layers[i].WriterClass.Create(Layers[i].WriterParams);
   end;
 // InitializeLayer must be called after all objects are created
 For i := Low(fLayers) to High(fLayers) do
@@ -993,33 +1033,33 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TLayeredStream.Add(const LayerName: String; Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer;
+Function TLayeredStream.Add(const LayerName: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer;
 begin
 SetLength(fLayers,Length(fLayers) + 1);
 Result := High(fLayers);
 fLayers[Result].Name := LayerName;
-fLayers[Result].Reader := Reader.Create(ReaderParams);
-fLayers[Result].Writer := Writer.Create(WriterParams);
+fLayers[Result].Reader := ReaderClass.Create(ReaderParams);
+fLayers[Result].Writer := WriterClass.Create(WriterParams);
 InitializeLayer(Result);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-Function TLayeredStream.Add(Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer;
+Function TLayeredStream.Add(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer;
 begin
-Result := Add('',Reader,Writer,ReaderParams,WriterParams);
+Result := Add('',ReaderClass,WriterClass,ReaderParams,WriterParams);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 Function TLayeredStream.Add(LayerConstruct: TLSLayerConstruct): Integer;
 begin
-Result := Add(LayerConstruct.Name,LayerConstruct.Reader,LayerConstruct.Writer,LayerConstruct.ReaderParams,LayerConstruct.WriterParams);
+Result := Add(LayerConstruct.Name,LayerConstruct.ReaderClass,LayerConstruct.WriterClass,LayerConstruct.ReaderParams,LayerConstruct.WriterParams);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.Insert(Index: Integer; const LayerName: String; Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+procedure TLayeredStream.Insert(Index: Integer; const LayerName: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
 var
   i:  Integer;
 begin
@@ -1029,28 +1069,28 @@ If CheckIndex(Index) then
     For i := High(fLayers) downto Succ(Index) do
       fLayers[i] := fLayers[i - 1];  
     fLayers[Index].Name := LayerName;
-    fLayers[Index].Reader := Reader.Create(ReaderParams);
-    fLayers[Index].Writer := Writer.Create(WriterParams);
+    fLayers[Index].Reader := ReaderClass.Create(ReaderParams);
+    fLayers[Index].Writer := WriterClass.Create(WriterParams);
     InitializeLayer(Index);
   end
 else If Index = Count then
-  Add(LayerName,Reader,Writer,ReaderParams,WriterParams)
+  Add(LayerName,ReaderClass,WriterClass,ReaderParams,WriterParams)
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Insert: Index (%d) out of bounds.',[Index]);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.Insert(Index: Integer; Reader: TLSLayerReaderClass; Writer: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+procedure TLayeredStream.Insert(Index: Integer; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
 begin
-Insert(Index,'',Reader,Writer,ReaderParams,WriterParams);
+Insert(Index,'',ReaderClass,WriterClass,ReaderParams,WriterParams);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 procedure TLayeredStream.Insert(Index: Integer; LayerConstruct: TLSLayerConstruct);
 begin
-Insert(Index,LayerConstruct.Name,LayerConstruct.Reader,LayerConstruct.Writer,LayerConstruct.ReaderParams,LayerConstruct.WriterParams);
+Insert(Index,LayerConstruct.Name,LayerConstruct.ReaderClass,LayerConstruct.WriterClass,LayerConstruct.ReaderParams,LayerConstruct.WriterParams);
 end;
 
 //------------------------------------------------------------------------------
