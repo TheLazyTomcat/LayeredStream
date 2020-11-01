@@ -113,7 +113,7 @@ type
 {
   types used to return information about accepted parameters
 }
-  TLSLayerObjectParamReceiver = (loprConstructor,loprInitializer,loprUpdater); {$message 'implementa updaters'}
+  TLSLayerObjectParamReceiver = (loprConstructor,loprInitializer,loprUpdater);
 
   TLSLayerObjectParamReceivers = set of TLSLayerObjectParamReceiver;
 
@@ -276,8 +276,6 @@ type
     fLayers:      array of TLSLayer;
     Function GetLayerCount: Integer;
     Function GetLayer(Index: Integer): TLSLayer;
-    Function GetLayerActive(Index: Integer): Boolean;
-    procedure SetLayerActive(Index: Integer; Value: Boolean);
   protected
     Function ChangeMode(NewMode: TLayeredStreamMode): TLayeredStreamMode; virtual;  // returns previous mode
     Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
@@ -367,12 +365,12 @@ type
     procedure FinalWriters; virtual;
     procedure FinalWriter(Index: Integer); overload; virtual;
     procedure FinalWriter(const LayerName: String); overload; virtual;
-    // layer active status
-    //Function IsActive(Index: Integer): Boolean; overload; virtual;
-    //Function IsActive(const LayerName: String): Boolean; overload; virtual;
-    //procedure Activate(Active: Boolean); overload; virtual;
-    //procedure Activate(Index: Integer, Active: Boolean); overload; virtual;
-    //procedure Activate(const LayerName: String, Active: Boolean); overload; virtual;
+    // layer active status - set Active param to true for activation, false for deactivation
+    Function IsActive(Index: Integer): Boolean; overload; virtual;
+    Function IsActive(const LayerName: String): Boolean; overload; virtual;
+    procedure Activate(Active: Boolean); overload; virtual; // (de)activates all layers from top to bottom
+    Function Activate(Index: Integer; Active: Boolean): Boolean; overload; virtual; // returns previous state
+    Function Activate(const LayerName: String; Active: Boolean): Boolean; overload; virtual;
     // stream methods
     Function Seek(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function Read(var Buffer; Count: LongInt): LongInt; override;
@@ -383,8 +381,6 @@ type
     property OwnsTarget: Boolean read fOwnsTarget write fOwnsTarget;
     property Count: Integer read GetLayerCount;
     property Layers[Index: Integer]: TLSLayer read GetLayer; default;
-
-    property LayerActive[Index: Integer]: Boolean read GetLayerActive write SetLayerActive; {$message 'remove'}
   end;
 
 implementation
@@ -675,36 +671,6 @@ If CheckIndex(Index) then
   Result := fLayers[Index]
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.GetLayer: Index (%d) out of bounds.',[Index]);
-end;
-
-//------------------------------------------------------------------------------
-
-Function TLayeredStream.GetLayerActive(Index: Integer): Boolean;
-begin
-If CheckIndex(Index) then
-  begin
-    If fLayers[Index].Reader.Active = fLayers[Index].Writer.Active then
-      Result := fLayers[Index].Reader.Active
-    else
-      raise ELSLayerIntegrityError.CreateFmt('TLayeredStream.GetLayerActive: Layer #%d active state mismatch.',[Index]);
-  end
-else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.GetLayerActive: Index (%d) out of bounds.',[Index]);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TLayeredStream.SetLayerActive(Index: Integer; Value: Boolean);
-begin
-If CheckIndex(Index) then
-  begin
-    If fLayers[Index].Reader.Active = fLayers[Index].Writer.Active then
-      begin
-        fLayers[Index].Reader.Active := Value;
-        fLayers[Index].Writer.Active := Value;
-      end
-    else raise ELSLayerIntegrityError.CreateFmt('TLayeredStream.SetLayerActive: Layer #%d active setting mismatch.',[Index]);
-  end
-else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.SetLayerActive: Index (%d) out of bounds.',[Index]);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1584,6 +1550,78 @@ If Find(LayerName,Index) then
   fLayers[Index].Writer.Final
 else
   raise ELSInvalidLayer.CreateFmt('TLayeredStream.FinalWriter: Layer "%s" not found.',[LayerName]);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TLayeredStream.IsActive(Index: Integer): Boolean;
+begin
+If CheckIndex(Index) then
+  begin
+    If fLayers[Index].Reader.Active = fLayers[Index].Writer.Active then
+      Result := fLayers[Index].Reader.Active
+    else
+      raise ELSLayerIntegrityError.CreateFmt('TLayeredStream.IsActive: Layer #%d active state mismatch.',[Index]);
+  end
+else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.IsActive: Index (%d) out of bounds.',[Index]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TLayeredStream.IsActive(const LayerName: String): Boolean;
+var
+  Index:  Integer;
+begin
+If Find(LayerName,Index) then
+  Result := IsActive(Index)
+else
+  raise ELSInvalidLayer.CreateFmt('TLayeredStream.IsActive: Layer "%s" not found.',[LayerName]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.Activate(Active: Boolean);
+var
+  i:  Integer;
+begin
+For i := HighIndex downto LowIndex do
+  begin
+    If fLayers[i].Reader.Active = fLayers[i].Writer.Active then
+      begin
+        fLayers[i].Reader.Active := Active;
+        fLayers[i].Writer.Active := Active;
+      end
+    else raise ELSLayerIntegrityError.CreateFmt('TLayeredStream.Activate: Layer #%d active state mismatch.',[i]);
+  end;
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TLayeredStream.Activate(Index: Integer; Active: Boolean): Boolean;
+begin
+If CheckIndex(Index) then
+  begin
+    If fLayers[Index].Reader.Active = fLayers[Index].Writer.Active then
+      begin
+        Result := fLayers[Index].Reader.Active;
+        fLayers[Index].Reader.Active := Active;
+        fLayers[Index].Writer.Active := Active;        
+      end
+    else raise ELSLayerIntegrityError.CreateFmt('TLayeredStream.Activate: Layer #%d active state mismatch.',[Index]);
+  end
+else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Activate: Index (%d) out of bounds.',[Index]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TLayeredStream.Activate(const LayerName: String; Active: Boolean): Boolean;
+var
+  Index:  Integer;
+begin
+If Find(LayerName,Index) then
+  Result := Activate(Index,Active)
+else
+  raise ELSInvalidLayer.CreateFmt('TLayeredStream.Activate: Layer "%s" not found.',[LayerName]);
 end;
 
 //------------------------------------------------------------------------------

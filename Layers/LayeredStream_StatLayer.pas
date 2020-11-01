@@ -33,6 +33,7 @@ type
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); override;
+    procedure Update(Params: TSimpleNamedValues); override;
     property Counter: UInt64 read fCounter;
     property ByteCounters: TStatsPerByte read fByteCounters;
   end;
@@ -60,6 +61,7 @@ type
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); override;
+    procedure Update(Params: TSimpleNamedValues); override;
     property Counter: UInt64 read fCounter;
     property ByteCounters: TStatsPerByte read fByteCounters;
   end;
@@ -138,7 +140,7 @@ end;
 class Function TStatLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('TStatLayerReader.FullStats',nvtBool,[loprConstructor,loprInitializer]);
+Result[0] := LayerObjectParam('TStatLayerReader.FullStats',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 Result[1] := LayerObjectParam('TStatLayerReader.KeepStats',nvtBool,[loprInitializer]);
 end;
 
@@ -156,6 +158,16 @@ If Assigned(Params) then
         ClearStats;
   end
 else ClearStats;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TStatLayerReader.Update(Params: TSimpleNamedValues);
+begin
+inherited;
+If Assigned(Params) then
+  If Params.Exists('TStatLayerReader.FullStats',nvtBool) then
+    fFullStats := Params.BoolValue['TStatLayerReader.FullStats'];
 end;
 
 
@@ -231,7 +243,7 @@ end;
 class Function TStatLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,2);
-Result[0] := LayerObjectParam('TStatLayerWriter.FullStats',nvtBool,[loprConstructor,loprInitializer]);
+Result[0] := LayerObjectParam('TStatLayerWriter.FullStats',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 Result[1] := LayerObjectParam('TStatLayerWriter.KeepStats',nvtBool,[loprInitializer]);
 end;
 
@@ -249,6 +261,16 @@ If Assigned(Params) then
         ClearStats;
   end
 else ClearStats;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TStatLayerWriter.Update(Params: TSimpleNamedValues);
+begin
+inherited;
+If Assigned(Params) then
+  If Params.Exists('TStatLayerWriter.FullStats',nvtBool) then
+    fFullStats := Params.BoolValue['TStatLayerWriter.FullStats'];
 end;
 
 end.
