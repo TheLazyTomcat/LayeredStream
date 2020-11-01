@@ -327,8 +327,8 @@ type
     procedure Clear; virtual;
     // layers methods
     Function LayerByName(const LayerName: String): TLSLayer; virtual; // to get index from name, use method IndexOf
-    //procedure Rename(Index: Integer; const NewName: String); overload; virtual;
-    //procedure Rename(const LayerName: String; const NewName: String); overload; virtual;    
+    procedure Rename(Index: Integer; const NewName: String); overload; virtual;
+    procedure Rename(const LayerName: String; const NewName: String); overload; virtual;
   {
     Note that the order of operations should be init - update - flush - final
   }
@@ -1054,7 +1054,8 @@ end;
 
 Function TLayeredStream.Add(LayerConstruct: TLSLayerConstruct): Integer;
 begin
-Result := Add(LayerConstruct.Name,LayerConstruct.ReaderClass,LayerConstruct.WriterClass,LayerConstruct.ReaderParams,LayerConstruct.WriterParams);
+with LayerConstruct do
+  Result := Add(Name,ReaderClass,WriterClass,ReaderParams,WriterParams);
 end;
 
 //------------------------------------------------------------------------------
@@ -1090,7 +1091,8 @@ end;
 
 procedure TLayeredStream.Insert(Index: Integer; LayerConstruct: TLSLayerConstruct);
 begin
-Insert(Index,LayerConstruct.Name,LayerConstruct.ReaderClass,LayerConstruct.WriterClass,LayerConstruct.ReaderParams,LayerConstruct.WriterParams);
+with LayerConstruct do
+  Insert(Index,Name,ReaderClass,WriterClass,ReaderParams,WriterParams);
 end;
 
 //------------------------------------------------------------------------------
@@ -1164,6 +1166,28 @@ If Find(LayerName,Index) then
   Result := fLayers[Index]
 else
   raise ELSInvalidLayer.CreateFmt('TLayeredStream.LayerByName: Layer "%s" not found.',[LayerName]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.Rename(Index: Integer; const NewName: String);
+begin
+If CheckIndex(Index) then
+  fLayers[Index].Name := NewName
+else
+  raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Rename: Index (%d) out of bounds.',[Index]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Rename(const LayerName: String; const NewName: String);
+var
+  Index:  Integer;
+begin
+If Find(LayerName,Index) then
+  fLayers[Index].Name := NewName
+else
+  raise ELSInvalidLayer.CreateFmt('TLayeredStream.Rename: Layer "%s" not found.',[LayerName]);
 end;
 
 //------------------------------------------------------------------------------
