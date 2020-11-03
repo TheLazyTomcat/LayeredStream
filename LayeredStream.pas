@@ -19,6 +19,7 @@ type
   ELSInvalidLayer        = class(ELSException);
   ELSInvalidConnection   = class(ELSException);
   ELSLayerIntegrityError = class(ELSException);
+  ELSDuplicitLayerName   = class(ELSException);
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -141,7 +142,7 @@ type
 type
   TLSLayerObjectBase = class(TCustomObject)
   protected
-    fCounterpart:     TLSLayerObjectBase; // the orher object in layer pair
+    fCounterpart:     TLSLayerObjectBase; // the other object in layer pair
     fSeekConnection:  TLSLayerObjectSeekConnection;
     fActive:          Boolean;
     procedure SetCounterpart(Value: TLSLayerObjectBase); virtual;
@@ -985,19 +986,26 @@ end;
 
 Function TLayeredStream.Add(const LayerName: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer;
 begin
-SetLength(fLayers,Length(fLayers) + 1);
-Result := High(fLayers);
-fLayers[Result].Name := LayerName;
-fLayers[Result].Reader := ReaderClass.Create(ReaderParams);
-fLayers[Result].Writer := WriterClass.Create(WriterParams);
-InitializeLayer(Result);
+If not Find(LayerName,Result) then
+  begin
+    SetLength(fLayers,Length(fLayers) + 1);
+    Result := High(fLayers);
+    fLayers[Result].Name := LayerName;
+    fLayers[Result].Reader := ReaderClass.Create(ReaderParams);
+    fLayers[Result].Writer := WriterClass.Create(WriterParams);
+    InitializeLayer(Result);
+  end
+else raise ELSDuplicitLayerName.CreateFmt('TLayeredStream.Add: Layer with the name "%s" already exists.',[LayerName]);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 Function TLayeredStream.Add(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer;
+var
+  Identifier: TGUID;
 begin
-Result := Add('',ReaderClass,WriterClass,ReaderParams,WriterParams);
+CreateGUID(Identifier);
+Result := Add(GUIDToString(Identifier),ReaderClass,WriterClass,ReaderParams,WriterParams);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1014,27 +1022,34 @@ procedure TLayeredStream.Insert(Index: Integer; const LayerName: String; ReaderC
 var
   i:  Integer;
 begin
-If CheckIndex(Index) then
+If not Find(LayerName,i) then
   begin
-    SetLength(fLayers,Length(fLayers) + 1);
-    For i := High(fLayers) downto Succ(Index) do
-      fLayers[i] := fLayers[i - 1];  
-    fLayers[Index].Name := LayerName;
-    fLayers[Index].Reader := ReaderClass.Create(ReaderParams);
-    fLayers[Index].Writer := WriterClass.Create(WriterParams);
-    InitializeLayer(Index);
+    If CheckIndex(Index) then
+      begin
+        SetLength(fLayers,Length(fLayers) + 1);
+        For i := High(fLayers) downto Succ(Index) do
+          fLayers[i] := fLayers[i - 1];
+        fLayers[Index].Name := LayerName;
+        fLayers[Index].Reader := ReaderClass.Create(ReaderParams);
+        fLayers[Index].Writer := WriterClass.Create(WriterParams);
+        InitializeLayer(Index);
+      end
+    else If Index = Count then
+      Add(LayerName,ReaderClass,WriterClass,ReaderParams,WriterParams)
+    else
+      raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Insert: Index (%d) out of bounds.',[Index]);
   end
-else If Index = Count then
-  Add(LayerName,ReaderClass,WriterClass,ReaderParams,WriterParams)
-else
-  raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Insert: Index (%d) out of bounds.',[Index]);
+else raise ELSDuplicitLayerName.CreateFmt('TLayeredStream.Insert: Layer with the name "%s" already exists.',[LayerName]);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 procedure TLayeredStream.Insert(Index: Integer; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+var
+  Identifier: TGUID;
 begin
-Insert(Index,'',ReaderClass,WriterClass,ReaderParams,WriterParams);
+CreateGUID(Identifier);
+Insert(Index,GUIDToString(Identifier),ReaderClass,WriterClass,ReaderParams,WriterParams);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1121,23 +1136,36 @@ end;
 //------------------------------------------------------------------------------
 
 procedure TLayeredStream.Rename(Index: Integer; const NewName: String);
+var
+  CollisionIdx: Integer;
 begin
 If CheckIndex(Index) then
-  fLayers[Index].Name := NewName
-else
-  raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Rename: Index (%d) out of bounds.',[Index]);
+  begin
+    CollisionIdx := IndexOf(NewName);
+    If not CheckIndex(CollisionIdx) or (CollisionIdx = Index) then
+      fLayers[Index].Name := NewName
+    else
+      raise ELSDuplicitLayerName.CreateFmt('TLayeredStream.Rename: Layer with the name "%s" already exists.',[NewName]);
+  end
+else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Rename: Index (%d) out of bounds.',[Index]);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 procedure TLayeredStream.Rename(const LayerName: String; const NewName: String);
 var
-  Index:  Integer;
+  Index:        Integer;
+  CollisionIdx: Integer;
 begin
 If Find(LayerName,Index) then
-  fLayers[Index].Name := NewName
-else
-  raise ELSInvalidLayer.CreateFmt('TLayeredStream.Rename: Layer "%s" not found.',[LayerName]);
+  begin
+    CollisionIdx := IndexOf(NewName);
+    If not CheckIndex(CollisionIdx) or (CollisionIdx = Index) then
+      fLayers[Index].Name := NewName
+    else
+      raise ELSDuplicitLayerName.CreateFmt('TLayeredStream.Rename: Layer with the name "%s" already exists.',[NewName]);      
+  end
+else raise ELSInvalidLayer.CreateFmt('TLayeredStream.Rename: Layer "%s" not found.',[LayerName]);
 end;
 
 //------------------------------------------------------------------------------
