@@ -1,3 +1,59 @@
+{-------------------------------------------------------------------------------
+
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+-------------------------------------------------------------------------------}
+{===============================================================================
+
+  Layered Stream
+
+    WARNING - current implementation requires extensive testing.
+
+    Layered stream (TLayeredStream class) is a descendant of TStream class that
+    is intended for situations, where there is a need for some (possibly
+    multi-layered) processing of streamed data, and parallel processing is not
+    desirable or possible.
+
+    It does not do any writing or reading itself, it merely operates on another
+    stream (here called target) provided during construction.
+
+    The processing is done in one or more layers, where each layer is a pair
+    of objects - one object for reading and one for writing.
+    The layered stream holds an array of layers and when a request for read,
+    write or seek is executed, it is passed to the last layer (top-most). This
+    layer processes the request and data (possibly changing them) and passses
+    them to the next (lower) layer for further processing. Bottom-most layer,
+    after processing, then passes the request back to layered stream and it will
+    in turn execute it on the target.
+
+  Version 1.0 alpha (2020-11-03)
+
+  Last change 2020-11-03
+
+  ©2020 František Milt
+
+  Contacts:
+    František Milt: frantisek.milt@gmail.com
+
+  Support:
+    If you find this code useful, please consider supporting its author(s) by
+    making a small donation using the following link(s):
+
+      https://www.paypal.me/FMilt
+
+  Changelog:
+    For detailed changelog and history please refer to this git repository:
+
+      github.com/TheLazyTomcat/Lib.LayeredStream
+
+  Dependencies:
+    AuxTypes          - github.com/TheLazyTomcat/Lib.AuxTypes
+    AuxClasses        - github.com/TheLazyTomcat/Lib.AuxClasses
+    SimpleNamedValues - github.com/TheLazyTomcat/Lib.SimpleNamedValues
+
+===============================================================================}
 unit LayeredStream;
 
 {$IFDEF FPC}
