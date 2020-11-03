@@ -1,5 +1,12 @@
 unit LayeredStream_BufferLayer;
 
+{$IFDEF FPC}
+  {$MODE ObjFPC}
+  {$DEFINE FPC_DisableWarns}
+  {$MACRO ON}
+{$ENDIF}
+{$H+}
+
 interface
 
 uses
@@ -70,6 +77,12 @@ uses
   Math,
   AuxTypes;
 
+{$IFDEF FPC_DisableWarns}
+  {$DEFINE FPCDWM}
+  {$DEFINE W4055:={$WARN 4055 OFF}} // Conversion between ordinals and pointers is not portable
+  {$DEFINE W5058:={$WARN 5058 OFF}} // Variable "$1" does not seem to be initialized
+{$ENDIF}
+
 {===============================================================================
 --------------------------------------------------------------------------------
                                TBufferLayerReader
@@ -93,6 +106,7 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5058{$ENDIF}
 Function TBufferLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 var
   BytesRead:    LongInt;
@@ -111,7 +125,9 @@ If Size <= fUsed then
   {
     all required data are buffered - just copy them to the output
   }
+  {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
     Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,Size);
+  {$IFDEF FPCDWM}{$POP}{$ENDIF}
     fUsed := fUsed - Size;
     If fUsed <> 0 then
       fOffset := fOffset + Size
@@ -127,7 +143,9 @@ else If Size <= fSize then
   }
     If fUsed <> 0 then
       begin
+      {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
         Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,fUsed);
+      {$IFDEF FPCDWM}{$POP}{$ENDIF}
         BytesCopied := fUsed;
         fUsed := 0;
       end
@@ -142,7 +160,9 @@ else If Size <= fSize then
       }
         BytesRead := ReadOut(fMemory^,fSize);
         BytesToCopy := Min(BytesRead,Size - BytesCopied);
+      {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
         Move(fMemory^,Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,BytesToCopy);
+      {$IFDEF FPCDWM}{$POP}{$ENDIF}
         fUsed := BytesRead - BytesToCopy;
         fOffset := BytesToCopy;
         Result := BytesCopied + BytesToCopy;        
@@ -153,7 +173,9 @@ else If Size <= fSize then
         remaining required size is larger than 1/2 of the buffer - try read the
         rest directly to the output
       }
+      {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
         BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,Size - BytesCopied);
+      {$IFDEF FPCDWM}{$POP}{$ENDIF}
         Result := BytesCopied + BytesRead;
       end;
   end
@@ -166,16 +188,21 @@ else
   }
     If fUsed <> 0 then
       begin
+      {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
         Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,fUsed);
+      {$IFDEF FPCDWM}{$POP}{$ENDIF}
         BytesCopied := fUsed;
         fUsed := 0;
       end
     else BytesCopied := 0;
     fOffset := 0;
+  {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
     BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,Size - BytesCopied);
+  {$IFDEF FPCDWM}{$POP}{$ENDIF}
     Result := BytesCopied + BytesRead;
   end;
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
@@ -262,7 +289,9 @@ If Size <= (fSize - fUsed) then
   {
     data will fit free space in the buffer - just copy them to the buffer
   }
+  {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
     Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
+  {$IFDEF FPCDWM}{$POP}{$ENDIF}
     fUsed := fUsed + Size;
     Result := Size;
   end
@@ -277,12 +306,16 @@ else If Size < fSize then
     If BytesWritten < fUsed then
       begin
         // only part of the buffered data was written, buffer at least part of new data
+      {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
         Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fUsed - BytesWritten);
+      {$IFDEF FPCDWM}{$POP}{$ENDIF}
         fUsed := fUsed - BytesWritten;
         If Size <= (fSize - fUsed) then
           begin
             // whole new data will now fit into free space - buffer them
+          {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
             Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
+          {$IFDEF FPCDWM}{$POP}{$ENDIF}
             fUsed := fUsed + Size;
             Result := Size;
           end
@@ -290,7 +323,9 @@ else If Size < fSize then
           begin
             // only part of the new data can fit
             BytesToWrite := fSize - fUsed;
+          {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
             Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,BytesToWrite);
+          {$IFDEF FPCDWM}{$POP}{$ENDIF}
             fUsed := fSize;
             Result := BytesToWrite;
           end;
@@ -316,11 +351,15 @@ else
         If BytesWritten < fUsed then
           begin
             // only part of the buffered data was written...
+          {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
             Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fUsed - BytesWritten);
+          {$IFDEF FPCDWM}{$POP}{$ENDIF}
             fUsed := fUsed - BytesWritten;
             // ...buffer part of new data
             BytesToWrite := fSize - fUsed;
+          {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
             Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,BytesToWrite);
+          {$IFDEF FPCDWM}{$POP}{$ENDIF}
             fUsed := fSize;
             Result := BytesToWrite;
           end
@@ -339,7 +378,9 @@ If fUsed >= fSize then
     BytesWritten := WriteOut(fMemory^,fSize);
     If BytesWritten < fSize then
       begin
+      {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
         Move(Pointer(PtrUInt(fMemory) + PtrUInt(BytesWritten))^,fMemory^,fSize - BytesWritten);
+      {$IFDEF FPCDWM}{$POP}{$ENDIF}
         fUsed := fSize - BytesWritten;
       end
     else fUsed := 0

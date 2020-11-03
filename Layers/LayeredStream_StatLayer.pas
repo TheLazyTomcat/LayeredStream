@@ -1,5 +1,10 @@
 unit LayeredStream_StatLayer;
 
+{$IFDEF FPC}
+  {$MODE ObjFPC}
+{$ENDIF}
+{$H+}
+
 interface
 
 uses

@@ -1,5 +1,10 @@
 unit LayeredStream_PassthroughLayer;
 
+{$IFDEF FPC}
+  {$MODE ObjFPC}
+{$ENDIF}
+{$H+}
+
 interface
 
 uses

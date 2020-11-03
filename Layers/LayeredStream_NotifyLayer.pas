@@ -1,5 +1,10 @@
 unit LayeredStream_NotifyLayer;
 
+{$IFDEF FPC}
+  {$MODE ObjFPC}
+{$ENDIF}
+{$H+}
+
 interface
 
 uses

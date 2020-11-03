@@ -2,6 +2,10 @@ unit LayeredStream;
 
 {$IFDEF FPC}
   {$MODE ObjFPC}
+  {$MODESWITCH DuplicateLocals}
+  {$MODESWITCH ClassicProcVars}
+  {$DEFINE FPC_DisableWarns}
+  {$MACRO ON}
 {$ENDIF}
 {$H+}
 
@@ -386,6 +390,12 @@ type
 
 implementation
 
+{$IFDEF FPC_DisableWarns}
+  {$DEFINE FPCDWM}
+  {$DEFINE W5024:={$WARN 5024 OFF}} // Parameter "$1" not used
+  {$DEFINE W5058:={$WARN 5058 OFF}} // Variable "$1" does not seem to be initialized
+{$ENDIF}
+
 {===============================================================================
 --------------------------------------------------------------------------------
                                TLSLayerObjectBase
@@ -463,12 +473,14 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TLSLayerObjectBase.Initialize(Params: TSimpleNamedValues);
 begin
 fCounterpart := nil;
 fSeekConnection := nil;
 fActive := True;
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
@@ -518,17 +530,21 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TLSLayerObjectBase.Init(Params: TSimpleNamedValues = nil);
 begin
 // nothing to do
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TLSLayerObjectBase.Update(Params: TSimpleNamedValues = nil);
 begin
 // nothing to do
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
@@ -728,10 +744,12 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5058{$ENDIF}
 Function TLayeredStream.ReadOut(out Buffer; Size: LongInt): LongInt;
 begin
 Result := fTarget.Read(Buffer,Integer(Size));
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 

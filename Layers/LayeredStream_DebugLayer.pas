@@ -1,10 +1,17 @@
 unit LayeredStream_DebugLayer;
 
+{$IFDEF FPC}
+  {$MODE ObjFPC}
+  {$DEFINE FPC_DisableWarns}
+  {$MACRO ON}
+{$ENDIF}
+{$H+}
+
 interface
 
 uses
   Classes,
-  AuxTypes, SimpleNamedValues,
+  SimpleNamedValues,
   LayeredStream;
 
 {===============================================================================
@@ -134,6 +141,11 @@ type
 
 implementation
 
+{$IFDEF FPC_DisableWarns}
+  {$DEFINE FPCDWM}
+  {$DEFINE W5024:={$WARN 5024 OFF}} // Parameter "$1" not used
+{$ENDIF}
+
 const
   DEBUGLAYER_SIZE_DEFAULT = 1024;  // 1KiB
 
@@ -219,10 +231,12 @@ end;
     TDebugLowLayerReader - protected methods
 -------------------------------------------------------------------------------}
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 Function TDebugLowLayerReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Result := Random(DEBUGLAYER_SIZE_DEFAULT + 1);
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
@@ -292,6 +306,7 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 Function TDebugHighLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 begin
 {
@@ -315,6 +330,7 @@ If fDebugging then
   end
 else Result := ReadOut(fMemory^,fSize);
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
@@ -375,13 +391,16 @@ end;
     TDebugLowLayerWriter - protected methods
 -------------------------------------------------------------------------------}
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 Function TDebugLowLayerWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Result := Random(DEBUGLAYER_SIZE_DEFAULT + 1);
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 Function TDebugLowLayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 begin
 {
@@ -397,6 +416,7 @@ If fDebugging then
   end
 else Result := Size;
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
@@ -435,6 +455,7 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 Function TDebugHighLayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 var
   BuffPtr:  PByte;
@@ -465,6 +486,7 @@ If fDebugging then
   end
 else Result := WriteOut(fMemory^,0);
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 

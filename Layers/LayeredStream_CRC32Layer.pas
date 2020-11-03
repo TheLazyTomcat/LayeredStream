@@ -1,5 +1,10 @@
 unit LayeredStream_CRC32Layer;
 
+{$IFDEF FPC}
+  {$MODE ObjFPC}
+{$ENDIF}
+{$H+}
+
 interface
 
 uses
