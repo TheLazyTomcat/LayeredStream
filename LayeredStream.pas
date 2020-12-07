@@ -46,7 +46,7 @@
   Changelog:
     For detailed changelog and history please refer to this git repository:
 
-      github.com/TheLazyTomcat/Lib.LayeredStream
+      github.com/TheLazyTomcat/LayeredStream
 
   Dependencies:
     AuxTypes          - github.com/TheLazyTomcat/Lib.AuxTypes
@@ -60,8 +60,16 @@ unit LayeredStream;
   {$MODE ObjFPC}
   {$MODESWITCH DuplicateLocals}
   {$MODESWITCH ClassicProcVars}
+  {$INLINE ON}
+  {$DEFINE CanInline}
   {$DEFINE FPC_DisableWarns}
   {$MACRO ON}
+{$ELSE}
+  {$IF CompilerVersion >= 17 then}  // Delphi 2005+
+    {$DEFINE CanInline}
+  {$ELSE}
+    {$UNDEF CanInline}
+  {$IFEND}
 {$ENDIF}
 {$H+}
 
@@ -86,7 +94,7 @@ type
                                TLSLayerObjectBase
 --------------------------------------------------------------------------------
 ===============================================================================}
-
+type
   TLSLayerObjectType = (lotUndefined,lotReader,lotWriter);
 
 {
@@ -170,10 +178,10 @@ type
   TLSLayerObjectProperties = set of TLSLayerObjectProperty;
 
 //------------------------------------------------------------------------------
-
 {
   types used to return information about accepted parameters
 }
+type
   TLSLayerObjectParamReceiver = (loprConstructor,loprInitializer,loprUpdater);
 
   TLSLayerObjectParamReceivers = set of TLSLayerObjectParamReceiver;
@@ -231,7 +239,8 @@ type
     class Function LayerObjectType: TLSLayerObjectType; virtual;              // reader/writer
     class Function LayerObjectProperties: TLSLayerObjectProperties; virtual;  // what the objects does with data, how it behaves, ...
     class Function LayerObjectParams: TLSLayerObjectParams; virtual;          // list of accepted parameters
-    constructor Create(Params: TSimpleNamedValues);
+    constructor Create(Params: TSimpleNamedValues = nil); overload;
+    constructor Create(Params: ITransientSimpleNamedValues); overload;
     destructor Destroy; override;
   {
     Note that calling Init or Final is not mandatory, they are here only for
@@ -239,14 +248,16 @@ type
     lopNeedsFinal flags in LayerObjectProperties). But calling init and final
     on object that does not need it is not considered to be an error.
   }
-    procedure Init(Params: TSimpleNamedValues = nil); virtual;
+    procedure Init(Params: TSimpleNamedValues = nil); overload; virtual;
+    procedure Init(Params: ITransientSimpleNamedValues); overload; virtual;
   {
     Update is to be used only to update parameters during lifetime of the
     object where calling init is not possible or desirable.
     It should not be used as a mean of processing execution.
   }
-    procedure Update(Params: TSimpleNamedValues = nil); virtual;
-    procedure Flush; virtual;    
+    procedure Update(Params: TSimpleNamedValues = nil); overload; virtual;
+    procedure Update(Params: ITransientSimpleNamedValues); overload; virtual;
+    procedure Flush; virtual;
     procedure Final; virtual;
     property Counterpart: TLSLayerObjectBase read fCounterpart write SetCounterpart;
     property Active: Boolean read fActive write SetActive;
@@ -269,6 +280,7 @@ type
     Function ReadIn(out Buffer; Size: LongInt): LongInt; virtual;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; virtual; abstract;
     Function ReadOut(out Buffer; Size: LongInt): LongInt; virtual;
+    procedure Initialize(Params: TSimpleNamedValues); override;
     property ReadConnection: TLSLayerObjectReadConnection read fReadConnection write fReadConnection;
   public
     class Function LayerObjectType: TLSLayerObjectType; override;
@@ -291,6 +303,7 @@ type
     Function WriteIn(const Buffer; Size: LongInt): LongInt; virtual;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; virtual; abstract;
     Function WriteOut(const Buffer; Size: LongInt): LongInt; virtual;
+    procedure Initialize(Params: TSimpleNamedValues); override;
     property WriteConnection: TLSLayerObjectWriteConnection read fWriteConnection write fWriteConnection;    
   public
     class Function LayerObjectType: TLSLayerObjectType; override;
@@ -306,13 +319,25 @@ type
 type
   TLayeredStreamMode = (lsmUndefined,lsmSeek,lsmRead,lsmWrite);
 
+{
+  Type TLSLayer is used internally for layers management and storage. It is
+  also returned when accessing Layers property of the layered stream.
+}
   TLSLayer = record
     Name:   String;
     Reader: TLSLayerReader;
     Writer: TLSLayerWriter;
   end;
 
-  // for use in constructor...
+{===============================================================================
+    TLayeredStream - layer construct
+===============================================================================}
+{
+  Type TLSLayerConstruct and following inline constructor functions are used to
+  pass information needed for creation and initialization of new layers in the
+  layered stream object.
+}
+type
   TLSLayerConstruct = record
     Name:         String;
     ReaderClass:  TLSLayerReaderClass;
@@ -321,13 +346,59 @@ type
     WriterParams: TSimpleNamedValues;
   end;
 
-Function LayerConstruct(const Name: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): TLSLayerConstruct; overload;
-Function LayerConstruct(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass): TLSLayerConstruct; overload;
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  ReaderParams, WriterParams: TSimpleNamedValues): TLSLayerConstruct; overload;
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  ReaderParams, WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  ReaderParams: TSimpleNamedValues; WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  ReaderParams: ITransientSimpleNamedValues; WriterParams: TSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  Params: TSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  Params: ITransientSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+{===============================================================================
+    TLayeredStream - params passing
+===============================================================================}
+{
+  Following type and functions are to be used when passing parameters (named
+  values) to a layer object(s).
+}
+type
+  TLSLayerParams = record
+    ReaderParams: TSimpleNamedValues;
+    WriterParams: TSimpleNamedValues;
+  end;
+
+Function LayerParams(ReaderParams, WriterParams: TSimpleNamedValues): TLSLayerParams; overload;
+Function LayerParams(ReaderParams, WriterParams: ITransientSimpleNamedValues): TLSLayerParams; overload;{$IFDEF CanInline} inline;{$ENDIF}
+Function LayerParams(ReaderParams: TSimpleNamedValues; WriterParams: ITransientSimpleNamedValues): TLSLayerParams; overload;{$IFDEF CanInline} inline;{$ENDIF}
+Function LayerParams(ReaderParams: ITransientSimpleNamedValues; WriterParams: TSimpleNamedValues): TLSLayerParams; overload;{$IFDEF CanInline} inline;{$ENDIF}
+Function LayerParams(Params: TSimpleNamedValues): TLSLayerParams; overload;{$IFDEF CanInline} inline;{$ENDIF}
+Function LayerParams(Params: ITransientSimpleNamedValues): TLSLayerParams; overload;{$IFDEF CanInline} inline;{$ENDIF}
 
 {===============================================================================
     TLayeredStream - class declaration
 ===============================================================================}
-
 type
   TLayeredStream = class(TStream)
   private
@@ -353,24 +424,20 @@ type
     procedure Finalize; virtual;
   public
     constructor Create(Target: TStream); overload;
-    constructor Create(Target: TStream; Layers: array of TLSLayerConstruct); overload;
+    constructor Create(Target: TStream; LayerConstructs: array of TLSLayerConstruct); overload;
     destructor Destroy; override;
     // layer list methods
     Function LowIndex: Integer; virtual;
     Function HighIndex: Integer; virtual;
     Function CheckIndex(Index: Integer): Boolean; virtual;
-    Function IndexOf(const LayerName: String): Integer; overload; virtual;    // case insensitive
+    Function IndexOf(const LayerName: String): Integer; overload; virtual;  // case insensitive
     Function IndexOf(LayerObjectClass: TLSLayerObjectClass): Integer; overload; virtual;
     Function IndexOf(LayerObject: TLSLayerObjectBase): Integer; overload; virtual;
     Function Find(const LayerName: String; out Index: Integer): Boolean; overload; virtual;
     Function Find(LayerObjectClass: TLSLayerObjectClass; out Index: Integer): Boolean; overload; virtual;
     Function Find(LayerObject: TLSLayerObjectBase; out Index: Integer): Boolean; overload; virtual;
-    Function Add(const LayerName: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer; overload; virtual;
-    Function Add(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer; overload; virtual;
-    Function Add(LayerConstruct: TLSLayerConstruct): Integer; overload; virtual;
-    procedure Insert(Index: Integer; const LayerName: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
-    procedure Insert(Index: Integer; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
-    procedure Insert(Index: Integer; LayerConstruct: TLSLayerConstruct); overload; virtual;
+    Function Add(LayerConstruct: TLSLayerConstruct): Integer; virtual;  // use function LayerConstruct to fill the argument
+    procedure Insert(Index: Integer; LayerConstruct: TLSLayerConstruct); virtual;
     Function Remove(const LayerName: String): Integer; overload; virtual;
     Function Remove(LayerObjectClass: TLSLayerObjectClass): Integer; overload; virtual;
     Function Remove(LayerObject: TLSLayerObjectBase): Integer; overload; virtual;   
@@ -387,25 +454,39 @@ type
     writer second.
   }
     // initialization is done from bottom (first layer, lowest index) to top (last layer, highest index)
-    procedure Init(ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;  // initilizes all layers
-    procedure Init(Index: Integer; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
-    procedure Init(const LayerName: String; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
-    procedure InitReaders(Params: TSimpleNamedValues = nil); virtual;
-    procedure InitReader(Index: Integer; Params: TSimpleNamedValues = nil); overload; virtual;
-    procedure InitReader(const LayerName: String; Params: TSimpleNamedValues = nil); overload; virtual;
-    procedure InitWriters(Params: TSimpleNamedValues = nil); virtual;
-    procedure InitWriter(Index: Integer; Params: TSimpleNamedValues = nil); overload; virtual;
-    procedure InitWriter(const LayerName: String; Params: TSimpleNamedValues = nil); overload; virtual;
+    procedure Init(Params: TLSLayerParams); overload; virtual;  // initilizes all layers
+    procedure Init; overload; virtual;
+    procedure Init(Index: Integer; Params: TLSLayerParams); overload; virtual;
+    procedure Init(const LayerName: String; Params: TLSLayerParams); overload; virtual;
+    procedure InitReaders(ReaderParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure InitReaders(ReaderParams: ITransientSimpleNamedValues); overload; virtual;
+    procedure InitReader(Index: Integer; ReaderParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure InitReader(Index: Integer; ReaderParams: ITransientSimpleNamedValues); overload; virtual;
+    procedure InitReader(const LayerName: String; ReaderParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure InitReader(const LayerName: String; ReaderParams: ITransientSimpleNamedValues); overload; virtual;
+    procedure InitWriters(WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure InitWriters(WriterParams: ITransientSimpleNamedValues); overload; virtual;
+    procedure InitWriter(Index: Integer; WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure InitWriter(Index: Integer; WriterParams: ITransientSimpleNamedValues); overload; virtual;
+    procedure InitWriter(const LayerName: String; WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure InitWriter(const LayerName: String; WriterParams: ITransientSimpleNamedValues); overload; virtual;
     // updating is done from top to bottom
-    procedure Update(ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;  // updates all layers
-    procedure Update(Index: Integer; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
-    procedure Update(const LayerName: String; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil); overload; virtual;
-    procedure UpdateReaders(Params: TSimpleNamedValues = nil); virtual;
-    procedure UpdateReader(Index: Integer; Params: TSimpleNamedValues = nil); overload; virtual;
-    procedure UpdateReader(const LayerName: String; Params: TSimpleNamedValues = nil); overload; virtual;
-    procedure UpdateWriters(Params: TSimpleNamedValues = nil); virtual;
-    procedure UpdateWriter(Index: Integer; Params: TSimpleNamedValues = nil); overload; virtual;
-    procedure UpdateWriter(const LayerName: String; Params: TSimpleNamedValues = nil); overload; virtual;
+    procedure Update(Params: TLSLayerParams); overload; virtual;  // updates all layers
+    procedure Update; overload; virtual;
+    procedure Update(Index: Integer; Params: TLSLayerParams); overload; virtual;
+    procedure Update(const LayerName: String; Params: TLSLayerParams); overload; virtual;
+    procedure UpdateReaders(ReaderParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure UpdateReaders(ReaderParams: ITransientSimpleNamedValues); overload; virtual;
+    procedure UpdateReader(Index: Integer; ReaderParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure UpdateReader(Index: Integer; ReaderParams: ITransientSimpleNamedValues); overload; virtual;
+    procedure UpdateReader(const LayerName: String; ReaderParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure UpdateReader(const LayerName: String; ReaderParams: ITransientSimpleNamedValues); overload; virtual;  
+    procedure UpdateWriters(WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure UpdateWriters(WriterParams: ITransientSimpleNamedValues); overload; virtual;
+    procedure UpdateWriter(Index: Integer; WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure UpdateWriter(Index: Integer; WriterParams: ITransientSimpleNamedValues); overload; virtual;
+    procedure UpdateWriter(const LayerName: String; WriterParams: TSimpleNamedValues = nil); overload; virtual;
+    procedure UpdateWriter(const LayerName: String; WriterParams: ITransientSimpleNamedValues); overload; virtual;
     // flushing is done from top to bottom
     procedure Flush; overload; virtual; // flushes all layers according to mode (FlushReaders, FlushWriters)
     procedure Flush(Index: Integer); overload; virtual;
@@ -570,10 +651,17 @@ end;
 
 //------------------------------------------------------------------------------
 
-constructor TLSLayerObjectBase.Create(Params: TSimpleNamedValues);
+constructor TLSLayerObjectBase.Create(Params: TSimpleNamedValues = nil);
 begin
 inherited Create;
 Initialize(Params);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+constructor TLSLayerObjectBase.Create(Params: ITransientSimpleNamedValues);
+begin
+Create(Params.Implementor);
 end;
 
 //------------------------------------------------------------------------------
@@ -593,6 +681,13 @@ begin
 end;
 {$IFDEF FPCDWM}{$POP}{$ENDIF}
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLSLayerObjectBase.Init(Params: ITransientSimpleNamedValues);
+begin
+Init(Params.Implementor);
+end;
+
 //------------------------------------------------------------------------------
 
 {$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
@@ -601,6 +696,13 @@ begin
 // nothing to do
 end;
 {$IFDEF FPCDWM}{$POP}{$ENDIF}
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLSLayerObjectBase.Update(Params: ITransientSimpleNamedValues);
+begin
+Update(Params.Implementor);
+end;
 
 //------------------------------------------------------------------------------
 
@@ -648,6 +750,14 @@ else
   ELSInvalidConnection.Create('TLSLayerReader.ReadOut: Read connection not assigned.');
 end;
 
+//------------------------------------------------------------------------------
+
+procedure TLSLayerReader.Initialize(Params: TSimpleNamedValues);
+begin
+inherited;
+fReadConnection := nil;
+end;
+
 {-------------------------------------------------------------------------------
     TLSLayerReader - public methods
 -------------------------------------------------------------------------------}
@@ -689,6 +799,14 @@ else
   ELSInvalidConnection.Create('TLSLayerWriter.WriteOut: Write connection not assigned.');
 end;
 
+//------------------------------------------------------------------------------
+
+procedure TLSLayerWriter.Initialize(Params: TSimpleNamedValues);
+begin
+inherited;
+fWriteConnection := nil;
+end;
+
 {-------------------------------------------------------------------------------
     TLSLayerWriter - public methods
 -------------------------------------------------------------------------------}
@@ -705,10 +823,12 @@ end;
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TLayeredStream - Auxiliary functions
+    TLayeredStream - layer construct
 ===============================================================================}
 
-Function LayerConstruct(const Name: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): TLSLayerConstruct;
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  ReaderParams, WriterParams: TSimpleNamedValues): TLSLayerConstruct;
 begin
 Result.Name := Name;
 Result.ReaderClass := ReaderClass;
@@ -719,9 +839,107 @@ end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  ReaderParams, WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,ReaderClass,WriterClass,ReaderParams.Implementor,WriterParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  ReaderParams: TSimpleNamedValues; WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,ReaderClass,WriterClass,ReaderParams,WriterParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  ReaderParams: ITransientSimpleNamedValues; WriterParams: TSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,ReaderClass,WriterClass,ReaderParams.Implementor,WriterParams);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  Params: TSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,ReaderClass,WriterClass,Params,Params);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass;
+  Params: ITransientSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,ReaderClass,WriterClass,Params.Implementor,Params.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String;
+  ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,ReaderClass,WriterClass,TSimpleNamedValues(nil),TSimpleNamedValues(nil));
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 Function LayerConstruct(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass): TLSLayerConstruct;
 begin
-Result := LayerConstruct('',ReaderClass,WriterClass);
+Result := LayerConstruct('',ReaderClass,WriterClass,TSimpleNamedValues(nil),TSimpleNamedValues(nil));
+end;
+
+{===============================================================================
+    TLayeredStream - params passing
+===============================================================================}
+
+Function LayerParams(ReaderParams, WriterParams: TSimpleNamedValues): TLSLayerParams;
+begin
+Result.ReaderParams := ReaderParams;
+Result.WriterParams := WriterParams;
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerParams(ReaderParams, WriterParams: ITransientSimpleNamedValues): TLSLayerParams;
+begin
+Result := LayerParams(ReaderParams.Implementor,WriterParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerParams(ReaderParams: TSimpleNamedValues; WriterParams: ITransientSimpleNamedValues): TLSLayerParams;
+begin
+Result := LayerParams(ReaderParams,WriterParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerParams(ReaderParams: ITransientSimpleNamedValues; WriterParams: TSimpleNamedValues): TLSLayerParams;
+begin
+Result := LayerParams(ReaderParams.Implementor,WriterParams);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerParams(Params: TSimpleNamedValues): TLSLayerParams;
+begin
+Result := LayerParams(Params,Params);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerParams(Params: ITransientSimpleNamedValues): TLSLayerParams;
+begin
+Result := LayerParams(Params.Implementor,Params.Implementor);
 end;
 
 {===============================================================================
@@ -941,17 +1159,17 @@ end;
 
 //------------------------------------------------------------------------------
 
-constructor TLayeredStream.Create(Target: TStream; Layers: array of TLSLayerConstruct);
+constructor TLayeredStream.Create(Target: TStream; LayerConstructs: array of TLSLayerConstruct);
 var
   i:  Integer;
 begin
 Create(Target);
-SetLength(fLayers,Length(Layers));
+SetLength(fLayers,Length(LayerConstructs));
 For i := Low(fLayers) to High(fLayers) do
   begin
-    fLayers[i].Name := Layers[i].Name;
-    fLayers[i].Reader := Layers[i].ReaderClass.Create(Layers[i].ReaderParams);
-    fLayers[i].Writer := Layers[i].WriterClass.Create(Layers[i].WriterParams);
+    fLayers[i].Name := LayerConstructs[i].Name;
+    fLayers[i].Reader := LayerConstructs[i].ReaderClass.Create(LayerConstructs[i].ReaderParams);
+    fLayers[i].Writer := LayerConstructs[i].WriterClass.Create(LayerConstructs[i].WriterParams);
   end;
 // InitializeLayer must be called after all objects are created
 For i := Low(fLayers) to High(fLayers) do
@@ -1058,80 +1276,57 @@ end;
 
 //------------------------------------------------------------------------------
 
-Function TLayeredStream.Add(const LayerName: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer;
-begin
-If not Find(LayerName,Result) then
-  begin
-    SetLength(fLayers,Length(fLayers) + 1);
-    Result := High(fLayers);
-    fLayers[Result].Name := LayerName;
-    fLayers[Result].Reader := ReaderClass.Create(ReaderParams);
-    fLayers[Result].Writer := WriterClass.Create(WriterParams);
-    InitializeLayer(Result);
-  end
-else raise ELSDuplicitLayerName.CreateFmt('TLayeredStream.Add: Layer with the name "%s" already exists.',[LayerName]);
-end;
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-Function TLayeredStream.Add(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil): Integer;
+Function TLayeredStream.Add(LayerConstruct: TLSLayerConstruct): Integer;
 var
   Identifier: TGUID;
 begin
-CreateGUID(Identifier);
-Result := Add(GUIDToString(Identifier),ReaderClass,WriterClass,ReaderParams,WriterParams);
-end;
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-Function TLayeredStream.Add(LayerConstruct: TLSLayerConstruct): Integer;
-begin
-with LayerConstruct do
-  Result := Add(Name,ReaderClass,WriterClass,ReaderParams,WriterParams);
+If not Find(LayerConstruct.Name,Result) then
+  begin
+    SetLength(fLayers,Length(fLayers) + 1);
+    Result := High(fLayers);
+    If Length(LayerConstruct.Name) <= 0 then
+      begin
+        CreateGUID(Identifier);
+        fLayers[Result].Name := GUIDToString(Identifier);
+      end
+    else fLayers[Result].Name := LayerConstruct.Name;
+    fLayers[Result].Reader := LayerConstruct.ReaderClass.Create(LayerConstruct.ReaderParams);
+    fLayers[Result].Writer := LayerConstruct.WriterClass.Create(LayerConstruct.WriterParams);
+    InitializeLayer(Result);
+  end
+else raise ELSDuplicitLayerName.CreateFmt('TLayeredStream.Add: Layer with the name "%s" already exists.',[LayerConstruct.Name]);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.Insert(Index: Integer; const LayerName: String; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+procedure TLayeredStream.Insert(Index: Integer; LayerConstruct: TLSLayerConstruct);
 var
-  i:  Integer;
+  i:          Integer;
+  Identifier: TGUID;
 begin
-If not Find(LayerName,i) then
+If not Find(LayerConstruct.Name,i) then
   begin
     If CheckIndex(Index) then
       begin
         SetLength(fLayers,Length(fLayers) + 1);
         For i := High(fLayers) downto Succ(Index) do
-          fLayers[i] := fLayers[i - 1];
-        fLayers[Index].Name := LayerName;
-        fLayers[Index].Reader := ReaderClass.Create(ReaderParams);
-        fLayers[Index].Writer := WriterClass.Create(WriterParams);
+          fLayers[i] := fLayers[i - 1]; 
+        If Length(LayerConstruct.Name) <= 0 then
+          begin
+            CreateGUID(Identifier);
+            fLayers[Index].Name := GUIDToString(Identifier);
+          end
+        else fLayers[Index].Name := LayerConstruct.Name;
+        fLayers[Index].Reader := LayerConstruct.ReaderClass.Create(LayerConstruct.ReaderParams);
+        fLayers[Index].Writer := LayerConstruct.WriterClass.Create(LayerConstruct.WriterParams);
         InitializeLayer(Index);
       end
     else If Index = Count then
-      Add(LayerName,ReaderClass,WriterClass,ReaderParams,WriterParams)
+      Add(LayerConstruct)
     else
       raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Insert: Index (%d) out of bounds.',[Index]);
   end
-else raise ELSDuplicitLayerName.CreateFmt('TLayeredStream.Insert: Layer with the name "%s" already exists.',[LayerName]);
-end;
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-procedure TLayeredStream.Insert(Index: Integer; ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
-var
-  Identifier: TGUID;
-begin
-CreateGUID(Identifier);
-Insert(Index,GUIDToString(Identifier),ReaderClass,WriterClass,ReaderParams,WriterParams);
-end;
-
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-
-procedure TLayeredStream.Insert(Index: Integer; LayerConstruct: TLSLayerConstruct);
-begin
-with LayerConstruct do
-  Insert(Index,Name,ReaderClass,WriterClass,ReaderParams,WriterParams);
+else raise ELSDuplicitLayerName.CreateFmt('TLayeredStream.Insert: Layer with the name "%s" already exists.',[LayerConstruct.Name]);
 end;
 
 //------------------------------------------------------------------------------
@@ -1244,208 +1439,306 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.Init(ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+procedure TLayeredStream.Init(Params: TLSLayerParams);
 var
   i:  Integer;
 begin
 For i := LowIndex to HighIndex do
   begin
-    fLayers[i].Reader.Init(ReaderParams);
-    fLayers[i].Writer.Init(WriterParams);
+    fLayers[i].Reader.Init(Params.ReaderParams);
+    fLayers[i].Writer.Init(Params.WriterParams);
   end;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.Init(Index: Integer; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+procedure TLayeredStream.Init;
+begin
+Init(LayerParams(TSimpleNamedValues(nil),TSimpleNamedValues(nil)));
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Init(Index: Integer; Params: TLSLayerParams);
 begin
 If CheckIndex(Index) then
   begin
-    fLayers[Index].Reader.Init(ReaderParams);
-    fLayers[Index].Writer.Init(WriterParams);
+    fLayers[Index].Reader.Init(Params.ReaderParams);
+    fLayers[Index].Writer.Init(Params.WriterParams);
   end
 else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Init: Index (%d) out of bounds.',[Index]);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.Init(const LayerName: String; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+procedure TLayeredStream.Init(const LayerName: String; Params: TLSLayerParams);
 var
   Index:  Integer;
 begin
 If Find(LayerName,Index) then
   begin
-    fLayers[Index].Reader.Init(ReaderParams);
-    fLayers[Index].Writer.Init(WriterParams);
+    fLayers[Index].Reader.Init(Params.ReaderParams);
+    fLayers[Index].Writer.Init(Params.WriterParams);
   end
 else raise ELSInvalidLayer.CreateFmt('TLayeredStream.Init: Layer "%s" not found.',[LayerName]);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.InitReaders(Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.InitReaders(ReaderParams: TSimpleNamedValues = nil);
 var
   i:  Integer;
 begin
 For i := LowIndex to HighIndex do
-  fLayers[i].Reader.Init(Params);
+  fLayers[i].Reader.Init(ReaderParams);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.InitReaders(ReaderParams: ITransientSimpleNamedValues);
+begin
+InitReaders(ReaderParams.Implementor);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.InitReader(Index: Integer; Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.InitReader(Index: Integer; ReaderParams: TSimpleNamedValues = nil);
 begin
 If CheckIndex(Index) then
-  fLayers[Index].Reader.Init(Params)
+  fLayers[Index].Reader.Init(ReaderParams)
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.InitReader: Index (%d) out of bounds.',[Index]);
 end;
- 
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.InitReader(const LayerName: String; Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.InitReader(Index: Integer; ReaderParams: ITransientSimpleNamedValues);
+begin
+InitReader(Index,ReaderParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.InitReader(const LayerName: String; ReaderParams: TSimpleNamedValues = nil);
 var
   Index:  Integer;
 begin
 If Find(LayerName,Index) then
-  fLayers[Index].Reader.Init(Params)
+  fLayers[Index].Reader.Init(ReaderParams)
 else
   raise ELSInvalidLayer.CreateFmt('TLayeredStream.InitReader: Layer "%s" not found.',[LayerName]);
 end;
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.InitReader(const LayerName: String; ReaderParams: ITransientSimpleNamedValues);
+begin
+InitReader(LayerName,ReaderParams.Implementor);
+end;
+
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.InitWriters(Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.InitWriters(WriterParams: TSimpleNamedValues = nil);
 var
   i:  Integer;
 begin
 For i := LowIndex to HighIndex do
-  fLayers[i].Writer.Init(Params);
+  fLayers[i].Writer.Init(WriterParams);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.InitWriters(WriterParams: ITransientSimpleNamedValues);
+begin
+InitWriters(WriterParams.Implementor);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.InitWriter(Index: Integer; Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.InitWriter(Index: Integer; WriterParams: TSimpleNamedValues = nil);
 begin
 If CheckIndex(Index) then
-  fLayers[Index].Writer.Init(Params)
+  fLayers[Index].Writer.Init(WriterParams)
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.InitWriter: Index (%d) out of bounds.',[Index]);
 end;
-  
+
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.InitWriter(const LayerName: String; Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.InitWriter(Index: Integer; WriterParams: ITransientSimpleNamedValues);
+begin
+InitWriter(Index,WriterParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.InitWriter(const LayerName: String; WriterParams: TSimpleNamedValues = nil);
 var
   Index:  Integer;
 begin
 If Find(LayerName,Index) then
-  fLayers[Index].Writer.Init(Params)
+  fLayers[Index].Writer.Init(WriterParams)
 else
   raise ELSInvalidLayer.CreateFmt('TLayeredStream.InitWriter: Layer "%s" not found.',[LayerName]);
+end;
+  
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.InitWriter(const LayerName: String; WriterParams: ITransientSimpleNamedValues);
+begin
+InitWriter(LayerName,WriterParams.Implementor);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.Update(ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+procedure TLayeredStream.Update(Params: TLSLayerParams);
 var
   i:  Integer;
 begin
 For i := LowIndex to HighIndex do
   begin
-    fLayers[i].Reader.Update(ReaderParams);
-    fLayers[i].Writer.Update(WriterParams);
+    fLayers[i].Reader.Update(Params.ReaderParams);
+    fLayers[i].Writer.Update(Params.WriterParams);
   end;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.Update(Index: Integer; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+procedure TLayeredStream.Update;
+begin
+Update(LayerParams(TSimpleNamedValues(nil),TSimpleNamedValues(nil)));
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Update(Index: Integer; Params: TLSLayerParams);
 begin
 If CheckIndex(Index) then
   begin
-    fLayers[Index].Reader.Update(ReaderParams);
-    fLayers[Index].Writer.Update(WriterParams);
+    fLayers[Index].Reader.Update(Params.ReaderParams);
+    fLayers[Index].Writer.Update(Params.WriterParams);
   end
 else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Update: Index (%d) out of bounds.',[Index]);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.Update(const LayerName: String; ReaderParams: TSimpleNamedValues = nil; WriterParams: TSimpleNamedValues = nil);
+procedure TLayeredStream.Update(const LayerName: String; Params: TLSLayerParams);
 var
   Index:  Integer;
 begin
 If Find(LayerName,Index) then
   begin
-    fLayers[Index].Reader.Update(ReaderParams);
-    fLayers[Index].Writer.Update(WriterParams);
+    fLayers[Index].Reader.Update(Params.ReaderParams);
+    fLayers[Index].Writer.Update(Params.WriterParams);
   end
 else raise ELSInvalidLayer.CreateFmt('TLayeredStream.Update: Layer "%s" not found.',[LayerName]);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.UpdateReaders(Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.UpdateReaders(ReaderParams: TSimpleNamedValues = nil);
 var
   i:  Integer;
 begin
 For i := HighIndex downto LowIndex do
-  fLayers[i].Reader.Update(Params);
+  fLayers[i].Reader.Update(ReaderParams);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.UpdateReaders(ReaderParams: ITransientSimpleNamedValues);
+begin
+UpdateReaders(ReaderParams.Implementor);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.UpdateReader(Index: Integer; Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.UpdateReader(Index: Integer; ReaderParams: TSimpleNamedValues = nil);
 begin
 If CheckIndex(Index) then
-  fLayers[Index].Reader.Update(Params)
+  fLayers[Index].Reader.Update(ReaderParams)
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.UpdateReader: Index (%d) out of bounds.',[Index]);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.UpdateReader(const LayerName: String; Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.UpdateReader(Index: Integer; ReaderParams: ITransientSimpleNamedValues);
+begin
+UpdateReader(Index,ReaderParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.UpdateReader(const LayerName: String; ReaderParams: TSimpleNamedValues = nil);
 var
   Index:  Integer;
 begin
 If Find(LayerName,Index) then
-  fLayers[Index].Reader.Update(Params)
+  fLayers[Index].Reader.Update(ReaderParams)
 else
   raise ELSInvalidLayer.CreateFmt('TLayeredStream.UpdateReader: Layer "%s" not found.',[LayerName]);
 end;
 
-//------------------------------------------------------------------------------
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.UpdateWriters(Params: TSimpleNamedValues = nil);
-var
-  i:  Integer;
+procedure TLayeredStream.UpdateReader(const LayerName: String; ReaderParams: ITransientSimpleNamedValues);
 begin
-For i := HighIndex downto LowIndex do
-  fLayers[i].Writer.Update(Params);
+UpdateReader(LayerName,ReaderParams.Implementor);
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TLayeredStream.UpdateWriter(Index: Integer; Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.UpdateWriters(WriterParams: TSimpleNamedValues = nil);
+var
+  i:  Integer;
+begin
+For i := HighIndex downto LowIndex do
+  fLayers[i].Writer.Update(WriterParams);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.UpdateWriters(WriterParams: ITransientSimpleNamedValues);
+begin
+UpdateWriters(WriterParams.Implementor);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.UpdateWriter(Index: Integer; WriterParams: TSimpleNamedValues = nil);
 begin
 If CheckIndex(Index) then
-  fLayers[Index].Writer.Update(Params)
+  fLayers[Index].Writer.Update(WriterParams)
 else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.UpdateWriter: Index (%d) out of bounds.',[Index]);
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-procedure TLayeredStream.UpdateWriter(const LayerName: String; Params: TSimpleNamedValues = nil);
+procedure TLayeredStream.UpdateWriter(Index: Integer; WriterParams: ITransientSimpleNamedValues);
+begin
+UpdateWriter(Index,WriterParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.UpdateWriter(const LayerName: String; WriterParams: TSimpleNamedValues = nil);
 var
   Index:  Integer;
 begin
 If Find(LayerName,Index) then
-  fLayers[Index].Writer.Update(Params)
+  fLayers[Index].Writer.Update(WriterParams)
 else
   raise ELSInvalidLayer.CreateFmt('TLayeredStream.UpdateWriter: Layer "%s" not found.',[LayerName]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.UpdateWriter(const LayerName: String; WriterParams: ITransientSimpleNamedValues);
+begin
+UpdateWriter(LayerName,WriterParams.Implementor);
 end;
 
 //------------------------------------------------------------------------------
