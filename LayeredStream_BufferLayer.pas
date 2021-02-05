@@ -12,7 +12,7 @@
     Buffers read or written data.
 
     Can be used eg. for buffering when reading/writing large number of small
-    data to/from a file.
+    data blocks to/from a file.
 
   Version 1.0 (2020-11-03)
 
@@ -55,7 +55,7 @@ interface
 uses
   Classes,
   SimpleNamedValues,
-  LayeredStream;
+  LayeredStream_Layers;
 
 {===============================================================================
 --------------------------------------------------------------------------------

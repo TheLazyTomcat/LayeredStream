@@ -50,7 +50,7 @@ interface
 uses
   SysUtils, Classes,
   SimpleNamedValues,  
-  LayeredStream;
+  LayeredStream_Layers;
 
 {===============================================================================
     Stop exception
