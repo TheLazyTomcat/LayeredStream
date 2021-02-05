@@ -306,6 +306,11 @@ type
 
 implementation
 
+{$IFDEF FPC_DisableWarns}
+  {$DEFINE FPCDWM}
+  {$DEFINE W5024:={$WARN 5024 OFF}} // Parameter "$1" not used
+{$ENDIF}
+
 {===============================================================================
 --------------------------------------------------------------------------------
                                TLSLayerObjectBase

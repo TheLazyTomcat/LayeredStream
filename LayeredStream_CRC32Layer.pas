@@ -51,14 +51,14 @@
 unit LayeredStream_CRC32Layer;
 
 {$INCLUDE './LayeredStream_defs.inc'}
-{$message 'later create superclasses HashingLayerReader/Writer'}
 
 interface
 
 uses
   Classes,
   SimpleNamedValues, CRC32,
-  LayeredStream_Layers;
+  LayeredStream_Layers,
+  LayeredStream_HashLayer;
 
 const
   CRC32CLASS_PKZIP      = 0;
@@ -74,21 +74,15 @@ const
     TCRC32LayerReader - class declaration
 ===============================================================================}
 type
-  TCRC32LayerReader = class(TLSLayerReader)
+  TCRC32LayerReader = class(THashLayerReader)
   private
-    fHasher:  TCRC32BaseHash;
+    Function GetCRC32Hasher: TCRC32BaseHash;
     Function GetCRC32: TCRC32;
   protected
-    Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
-    Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
     procedure Initialize(Params: TSimpleNamedValues); override;
-    procedure Finalize; override;
   public
-    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
-    procedure Final; override;
-    property Hasher: TCRC32BaseHash read fHasher;
+    property CRC32Hasher: TCRC32BaseHash read GetCRC32Hasher;
     property CRC32: TCRC32 read GetCRC32;
   end;
 
@@ -101,21 +95,15 @@ type
     TCRC32LayerWriter - class declaration
 ===============================================================================}
 type
-  TCRC32LayerWriter = class(TLSLayerWriter)
+  TCRC32LayerWriter = class(THashLayerWriter)
   private
-    fHasher:  TCRC32BaseHash;
+    Function GetCRC32Hasher: TCRC32BaseHash;
     Function GetCRC32: TCRC32;
   protected
-    Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
-    Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
     procedure Initialize(Params: TSimpleNamedValues); override;
-    procedure Finalize; override;
   public
-    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
-    procedure Final; override;
-    property Hasher: TCRC32BaseHash read fHasher;
+    property CRC32Hasher: TCRC32BaseHash read GetCRC32Hasher;
     property CRC32: TCRC32 read GetCRC32;
   end;
 
@@ -177,29 +165,21 @@ end;
     TCRC32LayerReader - private methods
 -------------------------------------------------------------------------------}
 
+Function TCRC32LayerReader.GetCRC32Hasher: TCRC32BaseHash;
+begin
+Result := TCRC32BaseHash(fHasher);
+end;
+
+//------------------------------------------------------------------------------
+
 Function TCRC32LayerReader.GetCRC32: TCRC32;
 begin
-Result := fHasher.CRC32;
+Result := TCRC32BaseHash(fHasher).CRC32;
 end;
 
 {-------------------------------------------------------------------------------
     TCRC32LayerReader - protected methods
 -------------------------------------------------------------------------------}
-
-Function TCRC32LayerReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
-begin
-Result := SeekOut(Offset,Origin);
-end;
-
-//------------------------------------------------------------------------------
-
-Function TCRC32LayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
-begin
-Result := ReadOut(Buffer,Size);
-fHasher.Update(Buffer,Result);
-end;
-
-//------------------------------------------------------------------------------
 
 procedure TCRC32LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
@@ -210,24 +190,9 @@ else
   fHasher := TCRC32Hash.Create;
 end;
 
-//------------------------------------------------------------------------------
-
-procedure TCRC32LayerReader.Finalize;
-begin
-fHasher.Free;
-inherited;
-end;
-
 {-------------------------------------------------------------------------------
     TCRC32LayerReader - public methods
 -------------------------------------------------------------------------------}
-
-class Function TCRC32LayerReader.LayerObjectProperties: TLSLayerObjectProperties;
-begin
-Result := [lopNeedsInit,lopNeedsFinal,lopPassthrough,lopObserver];
-end;
-
-//------------------------------------------------------------------------------
 
 class Function TCRC32LayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
@@ -243,22 +208,6 @@ Result[7] := LayerObjectParam('TCRC32LayerReader.ReflectOut',nvtBool,[loprConstr
 Result[8] := LayerObjectParam('TCRC32LayerReader.XOROutValue',nvtInteger,[loprConstructor]);
 end;
 
-//------------------------------------------------------------------------------
-
-procedure TCRC32LayerReader.Init(Params: TSimpleNamedValues);
-begin
-inherited;
-fHasher.Init;
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TCRC32LayerReader.Final;
-begin
-fHasher.Final;
-inherited;
-end;
-
 {===============================================================================
 --------------------------------------------------------------------------------
                                TCRC32LayerWriter
@@ -271,29 +220,21 @@ end;
     TCRC32LayerWriter - private methods
 -------------------------------------------------------------------------------}
 
+Function TCRC32LayerWriter.GetCRC32Hasher: TCRC32BaseHash;
+begin
+Result := TCRC32BaseHash(fHasher);
+end;
+
+//------------------------------------------------------------------------------
+
 Function TCRC32LayerWriter.GetCRC32: TCRC32;
 begin
-Result := fHasher.CRC32;
+Result := TCRC32BaseHash(fHasher).CRC32;
 end;
 
 {-------------------------------------------------------------------------------
     TCRC32LayerWriter - protected methods
 -------------------------------------------------------------------------------}
-
-Function TCRC32LayerWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
-begin
-Result := SeekOut(Offset,Origin);
-end;
-
-//------------------------------------------------------------------------------
-
-Function TCRC32LayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
-begin
-Result := WriteOut(Buffer,Size);
-fHasher.Update(Buffer,Result);
-end;
-
-//------------------------------------------------------------------------------
 
 procedure TCRC32LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
@@ -304,24 +245,9 @@ else
   fHasher := TCRC32Hash.Create;
 end;
 
-//------------------------------------------------------------------------------
-
-procedure TCRC32LayerWriter.Finalize;
-begin
-fHasher.Free;
-inherited;
-end;
-
 {-------------------------------------------------------------------------------
     TCRC32LayerWriter - public methods
 -------------------------------------------------------------------------------}
-
-class Function TCRC32LayerWriter.LayerObjectProperties: TLSLayerObjectProperties;
-begin
-Result := [lopNeedsInit,lopNeedsFinal,lopPassthrough,lopObserver];
-end;
-
-//------------------------------------------------------------------------------
 
 class Function TCRC32LayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
@@ -335,22 +261,6 @@ Result[5] := LayerObjectParam('TCRC32LayerWriter.InitialValue',nvtInteger,[loprC
 Result[6] := LayerObjectParam('TCRC32LayerWriter.ReflectIn',nvtBool,[loprConstructor]);
 Result[7] := LayerObjectParam('TCRC32LayerWriter.ReflectOut',nvtBool,[loprConstructor]);
 Result[8] := LayerObjectParam('TCRC32LayerWriter.XOROutValue',nvtInteger,[loprConstructor]);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TCRC32LayerWriter.Init(Params: TSimpleNamedValues);
-begin
-inherited;
-fHasher.Init;
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TCRC32LayerWriter.Final;
-begin
-fHasher.Final;
-inherited;
 end;
 
 {===============================================================================

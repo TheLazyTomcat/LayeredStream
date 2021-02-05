@@ -377,7 +377,18 @@ procedure EnumRegisteredLayers(EnumFunc: TLSRegisteredLayersEnumFunc);
 implementation
 
 uses
-  SyncObjs;
+  SyncObjs,
+{
+  Following units are here to ensure the layers they implement are always
+  registered.
+}
+  LayeredStream_PassthroughLayer,
+  LayeredStream_NotifyLayer,
+  LayeredStream_StatLayer,
+  LayeredStream_StopLayer,
+  LayeredStream_BufferLayer,
+  LayeredStream_CRC32Layer,
+  LayeredStream_Adler32Layer;
 
 {$IFDEF FPC_DisableWarns}
   {$DEFINE FPCDWM}
@@ -1752,10 +1763,12 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TLSRegisteredLayers.SetCount(Value: Integer);
 begin
 // do nothing
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 {-------------------------------------------------------------------------------
     TLSRegisteredLayers - public methods
@@ -1857,16 +1870,52 @@ end;
 {===============================================================================
     TLSRegisteredLayers - public interface
 ===============================================================================}
+{-------------------------------------------------------------------------------
+    TLSRegisteredLayers - public interface internals
+-------------------------------------------------------------------------------}
+
 var
+  RegisteredLayersInit: Boolean = False;
   RegisteredLayersLock: TCriticalSection;
   RegisteredLayers:     TLSRegisteredLayers;
 
 //------------------------------------------------------------------------------
 
+procedure RegisteredLayersInitialize;
+begin
+{
+  Note that this code is first called during units initialization, at which
+  point the initialization is executed and objects are created.
+  Any subsequent call, including from other threads, will just read the
+  RegisteredLayersInit variable and, since it never changes after the first
+  call, exits immediately because it is set to true.
+  Therefore, this code should be thread-safe even with no protection.
+}
+If not RegisteredLayersInit then
+  begin
+    RegisteredLayersInit := True;
+    RegisteredLayersLock := TCriticalSection.Create;
+    RegisteredLayers := TLSRegisteredLayers.Create;
+  end;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure RegisteredLayersFinalize;
+begin
+FreeAndNil(RegisteredLayers);
+FreeAndNil(RegisteredLayersLock);
+end;
+
+{-------------------------------------------------------------------------------
+    TLSRegisteredLayers - public interface externals
+-------------------------------------------------------------------------------}
+
 Function RegisterLayer(const ID: String; LayerReaderClass: TLSLayerReaderClass; LayerWriterClass: TLSLayerWriterClass): Boolean;
 var
   LocalID:  String;
 begin
+RegisteredLayersInitialize;
 RegisteredLayersLock.Acquire;
 try
   LocalID := ID;
@@ -1883,6 +1932,7 @@ Function GetRegisteredLayerReader(const ID: String): TLSLayerReaderClass;
 var
   Index:  Integer;
 begin
+RegisteredLayersInitialize;
 RegisteredLayersLock.Acquire;
 try
   Index := RegisteredLayers.IndexOf(ID);
@@ -1901,6 +1951,7 @@ Function GetRegisteredLayerWriter(const ID: String): TLSLayerWriterClass;
 var
   Index:  Integer;
 begin
+RegisteredLayersInitialize;
 RegisteredLayersLock.Acquire;
 try
   Index := RegisteredLayers.IndexOf(ID);
@@ -1919,6 +1970,7 @@ Function GetRegisteredLayer(const ID: String; out LayerReaderClass: TLSLayerRead
 var
   Index:  Integer;
 begin
+RegisteredLayersInitialize;
 RegisteredLayersLock.Acquire;
 try
   Index := RegisteredLayers.IndexOf(ID);
@@ -1940,6 +1992,7 @@ procedure EnumRegisteredLayers(EnumFunc: TLSRegisteredLayersEnumFunc);
 var
   i:  Integer;
 begin
+RegisteredLayersInitialize;
 RegisteredLayersLock.Acquire;
 try
   For i := RegisteredLayers.LowIndex to RegisteredLayers.HighIndex do
@@ -1954,27 +2007,11 @@ end;
     Unit initialization/finalization
 ===============================================================================}
 
-procedure UnitInitialize;
-begin
-RegisteredLayersLock := TCriticalSection.Create;
-RegisteredLayers := TLSRegisteredLayers.Create;
-end;
-
-//------------------------------------------------------------------------------
-
-procedure UnitFinalize;
-begin
-FreeAndNil(RegisteredLayers);
-FreeAndNil(RegisteredLayersLock);
-end;
-
-//==============================================================================
-
 initialization
-  UnitInitialize;
+  RegisteredLayersInitialize;
 
 finalization
-  UnitFinalize;
+  RegisteredLayersFinalize;
 
 end.
 
