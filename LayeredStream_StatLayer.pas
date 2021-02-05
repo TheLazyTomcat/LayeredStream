@@ -43,10 +43,7 @@
 ===============================================================================}
 unit LayeredStream_StatLayer;
 
-{$IFDEF FPC}
-  {$MODE ObjFPC}
-{$ENDIF}
-{$H+}
+{$INCLUDE './LayeredStream_defs.inc'}
 
 interface
 
@@ -115,6 +112,9 @@ type
   end;
 
 implementation
+
+uses
+  LayeredStream;
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -320,5 +320,12 @@ If Assigned(Params) then
   If Params.Exists('TStatLayerWriter.FullStats',nvtBool) then
     fFullStats := Params.BoolValue['TStatLayerWriter.FullStats'];
 end;
+
+{===============================================================================
+    Layer registration
+===============================================================================}
+
+initialization
+  RegisterLayer('LSRL_Stat',TStatLayerReader,TStatLayerWriter);
 
 end.

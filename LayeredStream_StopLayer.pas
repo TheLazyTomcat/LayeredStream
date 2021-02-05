@@ -40,15 +40,12 @@
 ===============================================================================}
 unit LayeredStream_StopLayer;
 
-{$IFDEF FPC}
-  {$MODE ObjFPC}
-{$ENDIF}
-{$H+}
+{$INCLUDE './LayeredStream_defs.inc'}
 
 interface
 
 uses
-  SysUtils, Classes,
+  Classes,
   SimpleNamedValues,  
   LayeredStream_Layers;
 
@@ -56,7 +53,7 @@ uses
     Stop exception
 ===============================================================================}
 type
-  TLayerStopException = class(Exception);
+  TLSLayerStopException = class(ELSException);
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -112,6 +109,9 @@ type
 
 implementation
 
+uses
+  LayeredStream;
+
 {===============================================================================
 --------------------------------------------------------------------------------
                                 TStopLayerReader
@@ -131,7 +131,7 @@ If fStopSeek then
     If fSilentStop then
       Result := 0
     else
-      raise TLayerStopException.CreateFmt('TStopLayerReader.SeekActive: Stopped seek (%d,%d).',[Offset,Ord(Origin)]);
+      raise TLSLayerStopException.CreateFmt('TStopLayerReader.SeekActive: Stopped seek (%d,%d).',[Offset,Ord(Origin)]);
   end
 else Result := SeekOut(Offset,Origin);
 end;
@@ -143,7 +143,7 @@ begin
 If fSilentStop then
   Result := 0
 else
-  raise TLayerStopException.CreateFmt('TStopLayerReader.ReadActive: Stopped read (%p,%d).',[@Buffer,Size]);
+  raise TLSLayerStopException.CreateFmt('TStopLayerReader.ReadActive: Stopped read (%p,%d).',[@Buffer,Size]);
 end;
 
 //------------------------------------------------------------------------------
@@ -228,7 +228,7 @@ If fStopSeek then
     If fSilentStop then
       Result := 0
     else
-      raise TLayerStopException.CreateFmt('TStopLayerWriter.SeekActive: Stopped seek (%d,%d).',[Offset,Ord(Origin)]);
+      raise TLSLayerStopException.CreateFmt('TStopLayerWriter.SeekActive: Stopped seek (%d,%d).',[Offset,Ord(Origin)]);
   end
 else Result := SeekOut(Offset,Origin);
 end;
@@ -240,7 +240,7 @@ begin
 If fSilentStop then
   Result := 0
 else
-  raise TLayerStopException.CreateFmt('TStopLayerWriter.WriteActive: Stopped write (%p,%d).',[@Buffer,Size]);
+  raise TLSLayerStopException.CreateFmt('TStopLayerWriter.WriteActive: Stopped write (%p,%d).',[@Buffer,Size]);
 end;
 
 //------------------------------------------------------------------------------
@@ -304,5 +304,12 @@ If Assigned(Params) then
       fSilentStop := Params.BoolValue['TStopLayerWriter.SilentStop'];
   end;
 end;
+
+{===============================================================================
+    Layer registration
+===============================================================================}
+
+initialization
+  RegisterLayer('LSRL_Stop',TStopLayerReader,TStopLayerWriter);
 
 end.

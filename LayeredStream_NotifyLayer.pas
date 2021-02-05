@@ -43,10 +43,7 @@
 ===============================================================================}
 unit LayeredStream_NotifyLayer;
 
-{$IFDEF FPC}
-  {$MODE ObjFPC}
-{$ENDIF}
-{$H+}
+{$INCLUDE './LayeredStream_defs.inc'}
 
 interface
 
@@ -179,6 +176,9 @@ type
   end;
 
 implementation
+
+uses
+  LayeredStream;
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -350,5 +350,12 @@ class Function TNotifyLayerWriter.LayerObjectProperties: TLSLayerObjectPropertie
 begin
 Result := [lopPassthrough,lopObserver];
 end;
+
+{===============================================================================
+    Layer registration
+===============================================================================}
+
+initialization
+  RegisterLayer('LSRL_Notify',TNotifyLayerReader,TNotifyLayerWriter);
 
 end.

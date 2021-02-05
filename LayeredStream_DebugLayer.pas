@@ -42,12 +42,7 @@
 ===============================================================================}
 unit LayeredStream_DebugLayer;
 
-{$IFDEF FPC}
-  {$MODE ObjFPC}
-  {$DEFINE FPC_DisableWarns}
-  {$MACRO ON}
-{$ENDIF}
-{$H+}
+{$INCLUDE './LayeredStream_defs.inc'}
 
 interface
 

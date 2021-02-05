@@ -43,12 +43,7 @@
 ===============================================================================}
 unit LayeredStream_BufferLayer;
 
-{$IFDEF FPC}
-  {$MODE ObjFPC}
-  {$DEFINE FPC_DisableWarns}
-  {$MACRO ON}
-{$ENDIF}
-{$H+}
+{$INCLUDE './LayeredStream_defs.inc'}
 
 interface
 
@@ -80,7 +75,9 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
+    procedure InternalFinal; override;
     procedure Flush; override;
+    procedure Final; override; // only calls Flush
     property Memory: Pointer read fMemory;
     property Size: LongInt read fSize;
     property Used: LongInt read fUsed;
@@ -108,7 +105,9 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
+    procedure InternalFinal; override;
     procedure Flush; override;
+    procedure Final; override;
     property Memory: Pointer read fMemory;
     property Size: LongInt read fSize;
     property Used: LongInt read fUsed;
@@ -118,7 +117,8 @@ implementation
 
 uses
   Math,
-  AuxTypes;
+  AuxTypes,
+  LayeredStream;
 
 {$IFDEF FPC_DisableWarns}
   {$DEFINE FPCDWM}
@@ -132,7 +132,7 @@ uses
 --------------------------------------------------------------------------------
 ===============================================================================}
 const
-  LS_BUFFERLAYERREADER_SIZE = 1024 * 1024;  // 1MiB
+  LS_READER_BUFF_SIZE = 1024 * 1024;  // 1MiB
 
 {===============================================================================
     TBufferLayerReader - class implementation
@@ -252,7 +252,7 @@ end;
 procedure TBufferLayerReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fSize := LS_BUFFERLAYERREADER_SIZE;
+fSize := LS_READER_BUFF_SIZE;
 If Assigned(Params) then
   If Params.Exists('TBufferLayerReader.Size',nvtInteger) then
     fSize := LongInt(Params.IntegerValue['TBufferLayerReader.Size']);
@@ -275,7 +275,7 @@ end;
 
 class Function TBufferLayerReader.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lopPassthrough,lopDelayer];
+Result := [lopNeedsFlush,lopPassthrough,lopDelayer];
 end;
 
 //------------------------------------------------------------------------------
@@ -284,6 +284,14 @@ class Function TBufferLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
 Result[0] := LayerObjectParam('TBufferLayerReader.Size',nvtInteger,[loprConstructor]);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TBufferLayerReader.InternalFinal;
+begin
+Flush;
+inherited;
 end;
 
 //------------------------------------------------------------------------------
@@ -298,6 +306,13 @@ fUsed := 0;
 fOffset := 0;
 end;
 
+//------------------------------------------------------------------------------
+
+procedure TBufferLayerReader.Final;
+begin
+Flush;
+end;
+
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -305,7 +320,7 @@ end;
 --------------------------------------------------------------------------------
 ===============================================================================}
 const
-  LS_BUFFERLAYERWRITER_SIZE = 1024 * 1024;  // 1MiB
+  LS_WRITER_BUFF_SIZE = 1024 * 1024;  // 1MiB
 
 {===============================================================================
     TBufferLayerWriter - class implementation
@@ -435,7 +450,7 @@ end;
 procedure TBufferLayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fSize := LS_BUFFERLAYERWRITER_SIZE;
+fSize := LS_WRITER_BUFF_SIZE;
 If Assigned(Params) then
   If Params.Exists('TBufferLayerWriter.Size',nvtInteger) then
     fSize := LongInt(Params.IntegerValue['TBufferLayerWriter.Size']);
@@ -457,7 +472,7 @@ end;
 
 class Function TBufferLayerWriter.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lopPassthrough,lopDelayer];
+Result := [lopNeedsFlush,lopPassthrough,lopDelayer];
 end;
 
 //------------------------------------------------------------------------------
@@ -470,6 +485,14 @@ end;
 
 //------------------------------------------------------------------------------
 
+procedure TBufferLayerWriter.InternalFinal;
+begin
+Flush;
+inherited;
+end;
+
+//------------------------------------------------------------------------------
+
 procedure TBufferLayerWriter.Flush;
 begin
 inherited;
@@ -478,5 +501,19 @@ If fActive and (fUsed > 0) then
     raise EWriteError.Create('TBufferLayerWriter.Flush: Failed to flush all buffered data.');
 fUsed := 0;
 end;
+
+//------------------------------------------------------------------------------
+
+procedure TBufferLayerWriter.Final;
+begin
+Flush;
+end;
+
+{===============================================================================
+    Layer registration
+===============================================================================}
+
+initialization
+  RegisterLayer('LSRL_Buffer',TBufferLayerReader,TBufferLayerWriter);
 
 end.

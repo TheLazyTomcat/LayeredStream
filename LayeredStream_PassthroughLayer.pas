@@ -163,6 +163,6 @@ end;
 ===============================================================================}
 
 initialization
-  RegisterLayer('passthrough',TPassthroughLayerReader,TPassthroughLayerWriter);
+  RegisterLayer('LSRL_Passthrough',TPassthroughLayerReader,TPassthroughLayerWriter);
 
 end.
