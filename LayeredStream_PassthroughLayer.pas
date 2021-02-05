@@ -43,10 +43,7 @@
 ===============================================================================}
 unit LayeredStream_PassthroughLayer;
 
-{$IFDEF FPC}
-  {$MODE ObjFPC}
-{$ENDIF}
-{$H+}
+{$INCLUDE './LayeredStream_defs.inc'}
 
 interface
 
@@ -90,6 +87,9 @@ type
   end;
 
 implementation
+
+uses
+  LayeredStream;
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -157,5 +157,12 @@ class Function TPassthroughLayerWriter.LayerObjectProperties: TLSLayerObjectProp
 begin
 Result := [lopPassthrough];
 end;
+
+{===============================================================================
+    Layer registration
+===============================================================================}
+
+initialization
+  RegisterLayer('passthrough',TPassthroughLayerReader,TPassthroughLayerWriter);
 
 end.

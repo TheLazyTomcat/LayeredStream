@@ -77,11 +77,6 @@ type
   ELSIndexOutOfBounds = class(ELSException);
 
 {
-  ELSInvalidValue is used when an invalid or unusable value is encountered.
-}
-  ELSInvalidValue = class(ELSException);
-
-{
   ELSDuplicitLayerName is raised when adding or registering a layer with a name
   or ID that is already present.
 }
@@ -92,7 +87,17 @@ type
 }
   ELSInvalidLayer = class(ELSException);
 
-  ELSLayerIntegrityError = class(ELSException);  
+{
+  ELSLayerIntegrityError is raised when there is an error in layer objects
+  integrity (eg. both objects are supposed to have the same value of some
+  parameted but they differ).
+}
+  ELSLayerIntegrityError = class(ELSException);
+
+{
+  ELSInvalidValue is used when an invalid or unusable value is encountered.
+}
+  ELSInvalidValue = class(ELSException);
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -158,6 +163,41 @@ Function LayerConstruct(const Name: String;
 
 Function LayerConstruct(
   ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+{
+  Following inline constructors are taking layer object classes from a given
+  registered layer.
+}
+
+Function LayerConstruct(const Name: String;
+  const RegisteredLayerID: String;
+  ReaderParams, WriterParams: TSimpleNamedValues): TLSLayerConstruct; overload;
+
+Function LayerConstruct(const Name: String;
+  const RegisteredLayerID: String;
+  ReaderParams, WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  const RegisteredLayerID: String;
+  ReaderParams: TSimpleNamedValues; WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  const RegisteredLayerID: String;
+  ReaderParams: ITransientSimpleNamedValues; WriterParams: TSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  const RegisteredLayerID: String;
+  Params: TSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  const RegisteredLayerID: String;
+  Params: ITransientSimpleNamedValues): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(const Name: String;
+  const RegisteredLayerID: String): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
+
+Function LayerConstruct(
+  const RegisteredLayerID: String): TLSLayerConstruct; overload;{$IFDEF CanInline} inline;{$ENDIF}
 
 {===============================================================================
     TLayeredStream - params passing
@@ -236,7 +276,7 @@ type
     When an action is performed on the whole layer, the reader is done first,
     writer second.
   }
-    // initialization is done from bottom (first layer, lowest index) to top (last layer, highest index)
+    // initialization is done from bottom (last layer, lowest index) to top (first layer, highest index)
     procedure Init(Params: TLSLayerParams); overload; virtual;  // initilizes all layers
     procedure Init; overload; virtual;
     procedure Init(Index: Integer; Params: TLSLayerParams); overload; virtual;
@@ -317,7 +357,7 @@ type
     TLSRegisteredLayers - public interface
 ===============================================================================}
 
-Function RegisterLayer(const ID: String; LayerReaderClass: TLSLayerReaderClass; LayerWriterClass: TLSLayerWriterClass): Integer;
+Function RegisterLayer(const ID: String; LayerReaderClass: TLSLayerReaderClass; LayerWriterClass: TLSLayerWriterClass): Boolean;
 
 Function GetRegisteredLayerReader(const ID: String): TLSLayerReaderClass;
 Function GetRegisteredLayerWriter(const ID: String): TLSLayerWriterClass;
@@ -423,6 +463,72 @@ end;
 Function LayerConstruct(ReaderClass: TLSLayerReaderClass; WriterClass: TLSLayerWriterClass): TLSLayerConstruct;
 begin
 Result := LayerConstruct('',ReaderClass,WriterClass,TSimpleNamedValues(nil),TSimpleNamedValues(nil));
+end;
+
+// = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = = =
+
+Function LayerConstruct(const Name: String; const RegisteredLayerID: String;
+  ReaderParams, WriterParams: TSimpleNamedValues): TLSLayerConstruct;
+var
+  ReaderClass: TLSLayerReaderClass;
+  WriterClass: TLSLayerWriterClass;
+begin
+If GetRegisteredLayer(RegisteredLayerID,ReaderClass,WriterClass) then
+  Result := LayerConstruct(NAme,ReaderClass,WriterClass,ReaderParams,WriterParams)
+else
+  raise ELSInvalidLayer.CreateFmt('LayerConstruct: Invalid registered layer ID "%s".',[RegisteredLayerID]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String; const RegisteredLayerID: String;
+  ReaderParams, WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,RegisteredLayerID,ReaderParams.Implementor,WriterParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String; const RegisteredLayerID: String;
+  ReaderParams: TSimpleNamedValues; WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,RegisteredLayerID,ReaderParams,WriterParams.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String; const RegisteredLayerID: String;
+  ReaderParams: ITransientSimpleNamedValues; WriterParams: TSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,RegisteredLayerID,ReaderParams.Implementor,WriterParams);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String; const RegisteredLayerID: String; Params: TSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,RegisteredLayerID,Params,Params);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String; const RegisteredLayerID: String; Params: ITransientSimpleNamedValues): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,RegisteredLayerID,Params.Implementor,Params.Implementor);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const Name: String; const RegisteredLayerID: String): TLSLayerConstruct;
+begin
+Result := LayerConstruct(Name,RegisteredLayerID,TSimpleNamedValues(nil),TSimpleNamedValues(nil));
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function LayerConstruct(const RegisteredLayerID: String): TLSLayerConstruct;
+begin
+Result := LayerConstruct('',RegisteredLayerID,TSimpleNamedValues(nil),TSimpleNamedValues(nil));
 end;
 
 {===============================================================================
@@ -669,7 +775,7 @@ end;
 
 procedure TLayeredStream.Finalize;
 begin
-Clear;  // also calls flush
+Clear; 
 If fOwnsTarget then
   fTarget.Free;
 end;
@@ -892,7 +998,7 @@ var
 begin
 If CheckIndex(Index) then
   begin
-    FinalizeLayer(Index);  // flushes both reader and writer
+    FinalizeLayer(Index);
     fLayers[Index].Reader.Free;
     fLayers[Index].Writer.Free;
     For i := Index to Pred(HighIndex) do
@@ -908,7 +1014,6 @@ procedure TLayeredStream.Clear;
 var
   i:  Integer;
 begin
-Flush;
 For i := HighIndex downto LowIndex do
   begin
     FinalizeLayer(i);
@@ -1123,7 +1228,7 @@ procedure TLayeredStream.Update(Params: TLSLayerParams);
 var
   i:  Integer;
 begin
-For i := LowIndex to HighIndex do
+For i := HighIndex downto LowIndex do
   begin
     fLayers[i].Reader.Update(Params.ReaderParams);
     fLayers[i].Writer.Update(Params.WriterParams);
@@ -1753,18 +1858,22 @@ end;
     TLSRegisteredLayers - public interface
 ===============================================================================}
 var
-  RegisteredLayersLocker: TCriticalSection;
-  RegisteredLayers:       TLSRegisteredLayers;
+  RegisteredLayersLock: TCriticalSection;
+  RegisteredLayers:     TLSRegisteredLayers;
 
 //------------------------------------------------------------------------------
 
-Function RegisterLayer(const ID: String; LayerReaderClass: TLSLayerReaderClass; LayerWriterClass: TLSLayerWriterClass): Integer;
+Function RegisterLayer(const ID: String; LayerReaderClass: TLSLayerReaderClass; LayerWriterClass: TLSLayerWriterClass): Boolean;
+var
+  LocalID:  String;
 begin
-RegisteredLayersLocker.Acquire;
+RegisteredLayersLock.Acquire;
 try
-  Result := RegisteredLayers.Add(ID,LayerReaderClass,LayerWriterClass);
+  LocalID := ID;
+  UniqueString(LocalID);
+  Result := RegisteredLayers.CheckIndex(RegisteredLayers.Add(LocalID,LayerReaderClass,LayerWriterClass));
 finally
-  RegisteredLayersLocker.Release;
+  RegisteredLayersLock.Release;
 end;
 end;
 
@@ -1774,15 +1883,15 @@ Function GetRegisteredLayerReader(const ID: String): TLSLayerReaderClass;
 var
   Index:  Integer;
 begin
-RegisteredLayersLocker.Acquire;
+RegisteredLayersLock.Acquire;
 try
   Index := RegisteredLayers.IndexOf(ID);
   If RegisteredLayers.CheckIndex(Index) then
     Result := RegisteredLayers[Index].LayerReaderClass
   else
-    raise ELSInvalidLayer.CreateFmt('GetRegisteredLayerReader: Invalid registered layer "%s".',[ID]);
+    raise ELSInvalidLayer.CreateFmt('GetRegisteredLayerReader: Invalid registered layer ID "%s".',[ID]);
 finally
-  RegisteredLayersLocker.Release;
+  RegisteredLayersLock.Release;
 end;
 end;
 
@@ -1792,15 +1901,15 @@ Function GetRegisteredLayerWriter(const ID: String): TLSLayerWriterClass;
 var
   Index:  Integer;
 begin
-RegisteredLayersLocker.Acquire;
+RegisteredLayersLock.Acquire;
 try
   Index := RegisteredLayers.IndexOf(ID);
   If RegisteredLayers.CheckIndex(Index) then
     Result := RegisteredLayers[Index].LayerWriterClass
   else
-    raise ELSInvalidLayer.CreateFmt('GetRegisteredLayerWriter: Invalid registered layer "%s".',[ID]);
+    raise ELSInvalidLayer.CreateFmt('GetRegisteredLayerWriter: Invalid registered layer ID "%s".',[ID]);
 finally
-  RegisteredLayersLocker.Release;
+  RegisteredLayersLock.Release;
 end;
 end;
 
@@ -1810,7 +1919,7 @@ Function GetRegisteredLayer(const ID: String; out LayerReaderClass: TLSLayerRead
 var
   Index:  Integer;
 begin
-RegisteredLayersLocker.Acquire;
+RegisteredLayersLock.Acquire;
 try
   Index := RegisteredLayers.IndexOf(ID);
   If RegisteredLayers.CheckIndex(Index) then
@@ -1821,7 +1930,7 @@ try
     end
   else Result := False;
 finally
-  RegisteredLayersLocker.Release;
+  RegisteredLayersLock.Release;
 end;
 end;
 
@@ -1831,13 +1940,13 @@ procedure EnumRegisteredLayers(EnumFunc: TLSRegisteredLayersEnumFunc);
 var
   i:  Integer;
 begin
-RegisteredLayersLocker.Acquire;
+RegisteredLayersLock.Acquire;
 try
   For i := RegisteredLayers.LowIndex to RegisteredLayers.HighIndex do
     If not EnumFunc(RegisteredLayers[i]) then
       Break{For i};
 finally
-  RegisteredLayersLocker.Release;
+  RegisteredLayersLock.Release;
 end;
 end;
 
@@ -1847,7 +1956,7 @@ end;
 
 procedure UnitInitialize;
 begin
-RegisteredLayersLocker := TCriticalSection.Create;
+RegisteredLayersLock := TCriticalSection.Create;
 RegisteredLayers := TLSRegisteredLayers.Create;
 end;
 
@@ -1856,9 +1965,10 @@ end;
 procedure UnitFinalize;
 begin
 FreeAndNil(RegisteredLayers);
-FreeAndNil(RegisteredLayersLocker);
+FreeAndNil(RegisteredLayersLock);
 end;
 
+//==============================================================================
 
 initialization
   UnitInitialize;
