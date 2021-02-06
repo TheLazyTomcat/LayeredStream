@@ -74,7 +74,7 @@ const
     TCRC32LayerReader - class declaration
 ===============================================================================}
 type
-  TCRC32LayerReader = class(THashLayerReader)
+  TCRC32LayerReader = class(TStreamHashLayerReader)
   private
     Function GetCRC32Hasher: TCRC32BaseHash;
     Function GetCRC32: TCRC32;
@@ -95,7 +95,7 @@ type
     TCRC32LayerWriter - class declaration
 ===============================================================================}
 type
-  TCRC32LayerWriter = class(THashLayerWriter)
+  TCRC32LayerWriter = class(TStreamHashLayerWriter)
   private
     Function GetCRC32Hasher: TCRC32BaseHash;
     Function GetCRC32: TCRC32;

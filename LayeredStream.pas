@@ -387,8 +387,17 @@ uses
   LayeredStream_StatLayer,
   LayeredStream_StopLayer,
   LayeredStream_BufferLayer,
+  // hashing layers
+  LayeredStream_HashLayer,
   LayeredStream_CRC32Layer,
-  LayeredStream_Adler32Layer;
+  LayeredStream_Adler32Layer,
+  LayeredStream_MD2Layer,
+  LayeredStream_MD4Layer,
+  LayeredStream_MD5Layer,
+  LayeredStream_SHA0Layer,
+  LayeredStream_SHA1Layer,
+  LayeredStream_SHA2Layer,
+  LayeredStream_SHA3Layer;
 
 {$IFDEF FPC_DisableWarns}
   {$DEFINE FPCDWM}

@@ -1,4 +1,4 @@
-unit LayeredStream_Adler32Layer;
+unit LayeredStream_MD5Layer;
 
 {$INCLUDE './LayeredStream_defs.inc'}
 
@@ -6,47 +6,47 @@ interface
 
 uses
   Classes,
-  SimpleNamedValues, Adler32,
+  SimpleNamedValues, MD5,
   LayeredStream_HashLayer;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerReader
+                                TMD5LayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerReader - class declaration
+    TMD5LayerReader - class declaration
 ===============================================================================}
 type
-  TAdler32LayerReader = class(TStreamHashLayerReader)
+  TMD5LayerReader = class(TBlockHashLayerReader)
   private
-    Function GetAdler32Hasher: TAdler32Hash;
-    Function GetAdler32: TAdler32;
+    Function GetMD5Hasher: TMD5Hash;
+    Function GetMD5: TMD5;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    property Adler32Hasher: TAdler32Hash read GetAdler32Hasher;
-    property Adler32: TAdler32 read GetAdler32;
+    property MD5Hasher: TMD5Hash read GetMD5Hasher;
+    property MD5: TMD5 read GetMD5;
   end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerWriter
+                                TMD5LayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerWriter - class declaration
+    TMD5LayerWriter - class declaration
 ===============================================================================}
 type
-  TAdler32LayerWriter = class(TStreamHashLayerWriter)
+  TMD5LayerWriter = class(TBlockHashLayerWriter)
   private
-    Function GetAdler32Hasher: TAdler32Hash;
-    Function GetAdler32: TAdler32;
+    Function GetMD5Hasher: TMD5Hash;
+    Function GetMD5: TMD5;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    property Adler32Hasher: TAdler32Hash read GetAdler32Hasher;
-    property Adler32: TAdler32 read GetAdler32;
+    property MD5Hasher: TMD5Hash read GetMD5Hasher;
+    property MD5: TMD5 read GetMD5;
   end;
 
 implementation
@@ -56,70 +56,70 @@ uses
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerReader
+                                TMD5LayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerReader - class implementation
+    TMD5LayerReader - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TAdler32LayerReader - private methods
+    TMD5LayerReader - private methods
 -------------------------------------------------------------------------------}
 
-Function TAdler32LayerReader.GetAdler32Hasher: TAdler32Hash;
+Function TMD5LayerReader.GetMD5Hasher: TMD5Hash;
 begin
-Result := TAdler32Hash(fHasher);
+Result := TMD5Hash(fHasher);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TAdler32LayerReader.GetAdler32: TAdler32;
+Function TMD5LayerReader.GetMD5: TMD5;
 begin
-Result := TAdler32Hash(fHasher).Adler32;
+Result := TMD5Hash(fHasher).MD5;
 end;
 
 {-------------------------------------------------------------------------------
-    TAdler32LayerReader - protected methods
+    TMD5LayerReader - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TAdler32LayerReader.Initialize(Params: TSimpleNamedValues);
+procedure TMD5LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fHasher := TAdler32Hash.Create;
+fHasher := TMD5Hash.Create;
 end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerWriter
+                                TMD5LayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerWriter - class implementation
+    TMD5LayerWriter - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TAdler32LayerWriter - private methods
+    TMD5LayerWriter - private methods
 -------------------------------------------------------------------------------}
 
-Function TAdler32LayerWriter.GetAdler32Hasher: TAdler32Hash;
+Function TMD5LayerWriter.GetMD5Hasher: TMD5Hash;
 begin
-Result := TAdler32Hash(fHasher);
+Result := TMD5Hash(fHasher);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TAdler32LayerWriter.GetAdler32: TAdler32;
+Function TMD5LayerWriter.GetMD5: TMD5;
 begin
-Result := TAdler32Hash(fHasher).Adler32;
+Result := TMD5Hash(fHasher).MD5;
 end;
 
 {-------------------------------------------------------------------------------
-    TAdler32LayerWriter - protected methods
+    TMD5LayerWriter - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TAdler32LayerWriter.Initialize(Params: TSimpleNamedValues);
+procedure TMD5LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fHasher := TAdler32Hash.Create;
+fHasher := TMD5Hash.Create;
 end;
 
 {===============================================================================
@@ -127,6 +127,7 @@ end;
 ===============================================================================}
 
 initialization
-  RegisterLayer('LSRL_Adler32',TAdler32LayerReader,TAdler32LayerWriter); 
+  RegisterLayer('LSRL_MD5',TMD5LayerReader,TMD5LayerWriter);
 
 end.
+

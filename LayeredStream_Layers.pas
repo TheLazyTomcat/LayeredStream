@@ -122,6 +122,7 @@ type
     lopSplitter,      // at least part of the data is copied into a side channel
     lopJoiner,        // some data are added to the stream from a side channel
     // special
+    lopCustom,        // real properties depends on creation parameters
     lopDebug          // anything is possible, no strict rules, refer to source or documentation for details
   );
 

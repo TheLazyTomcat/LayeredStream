@@ -1,4 +1,4 @@
-unit LayeredStream_Adler32Layer;
+unit LayeredStream_SHA1Layer;
 
 {$INCLUDE './LayeredStream_defs.inc'}
 
@@ -6,47 +6,47 @@ interface
 
 uses
   Classes,
-  SimpleNamedValues, Adler32,
+  SimpleNamedValues, SHA1,
   LayeredStream_HashLayer;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerReader
+                                TSHA1LayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerReader - class declaration
+    TSHA1LayerReader - class declaration
 ===============================================================================}
 type
-  TAdler32LayerReader = class(TStreamHashLayerReader)
+  TSHA1LayerReader = class(TBlockHashLayerReader)
   private
-    Function GetAdler32Hasher: TAdler32Hash;
-    Function GetAdler32: TAdler32;
+    Function GetSHA1Hasher: TSHA1Hash;
+    Function GetSHA1: TSHA1;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    property Adler32Hasher: TAdler32Hash read GetAdler32Hasher;
-    property Adler32: TAdler32 read GetAdler32;
+    property SHA1Hasher: TSHA1Hash read GetSHA1Hasher;
+    property SHA1: TSHA1 read GetSHA1;
   end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerWriter
+                                TSHA1LayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerWriter - class declaration
+    TSHA1LayerWriter - class declaration
 ===============================================================================}
 type
-  TAdler32LayerWriter = class(TStreamHashLayerWriter)
+  TSHA1LayerWriter = class(TBlockHashLayerWriter)
   private
-    Function GetAdler32Hasher: TAdler32Hash;
-    Function GetAdler32: TAdler32;
+    Function GetSHA1Hasher: TSHA1Hash;
+    Function GetSHA1: TSHA1;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    property Adler32Hasher: TAdler32Hash read GetAdler32Hasher;
-    property Adler32: TAdler32 read GetAdler32;
+    property SHA1Hasher: TSHA1Hash read GetSHA1Hasher;
+    property SHA1: TSHA1 read GetSHA1;
   end;
 
 implementation
@@ -56,70 +56,70 @@ uses
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerReader
+                                TSHA1LayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerReader - class implementation
+    TSHA1LayerReader - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TAdler32LayerReader - private methods
+    TSHA1LayerReader - private methods
 -------------------------------------------------------------------------------}
 
-Function TAdler32LayerReader.GetAdler32Hasher: TAdler32Hash;
+Function TSHA1LayerReader.GetSHA1Hasher: TSHA1Hash;
 begin
-Result := TAdler32Hash(fHasher);
+Result := TSHA1Hash(fHasher);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TAdler32LayerReader.GetAdler32: TAdler32;
+Function TSHA1LayerReader.GetSHA1: TSHA1;
 begin
-Result := TAdler32Hash(fHasher).Adler32;
+Result := TSHA1Hash(fHasher).SHA1;
 end;
 
 {-------------------------------------------------------------------------------
-    TAdler32LayerReader - protected methods
+    TSHA1LayerReader - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TAdler32LayerReader.Initialize(Params: TSimpleNamedValues);
+procedure TSHA1LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fHasher := TAdler32Hash.Create;
+fHasher := TSHA1Hash.Create;
 end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerWriter
+                                TSHA1LayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerWriter - class implementation
+    TSHA1LayerWriter - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TAdler32LayerWriter - private methods
+    TSHA1LayerWriter - private methods
 -------------------------------------------------------------------------------}
 
-Function TAdler32LayerWriter.GetAdler32Hasher: TAdler32Hash;
+Function TSHA1LayerWriter.GetSHA1Hasher: TSHA1Hash;
 begin
-Result := TAdler32Hash(fHasher);
+Result := TSHA1Hash(fHasher);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TAdler32LayerWriter.GetAdler32: TAdler32;
+Function TSHA1LayerWriter.GetSHA1: TSHA1;
 begin
-Result := TAdler32Hash(fHasher).Adler32;
+Result := TSHA1Hash(fHasher).SHA1;
 end;
 
 {-------------------------------------------------------------------------------
-    TAdler32LayerWriter - protected methods
+    TSHA1LayerWriter - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TAdler32LayerWriter.Initialize(Params: TSimpleNamedValues);
+procedure TSHA1LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fHasher := TAdler32Hash.Create;
+fHasher := TSHA1Hash.Create;
 end;
 
 {===============================================================================
@@ -127,6 +127,6 @@ end;
 ===============================================================================}
 
 initialization
-  RegisterLayer('LSRL_Adler32',TAdler32LayerReader,TAdler32LayerWriter); 
+  RegisterLayer('LSRL_SHA1',TSHA1LayerReader,TSHA1LayerWriter);
 
 end.

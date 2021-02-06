@@ -1,4 +1,4 @@
-unit LayeredStream_Adler32Layer;
+unit LayeredStream_MD4Layer;
 
 {$INCLUDE './LayeredStream_defs.inc'}
 
@@ -6,47 +6,47 @@ interface
 
 uses
   Classes,
-  SimpleNamedValues, Adler32,
+  SimpleNamedValues, MD4,
   LayeredStream_HashLayer;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerReader
+                                TMD4LayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerReader - class declaration
+    TMD4LayerReader - class declaration
 ===============================================================================}
 type
-  TAdler32LayerReader = class(TStreamHashLayerReader)
+  TMD4LayerReader = class(TBlockHashLayerReader)
   private
-    Function GetAdler32Hasher: TAdler32Hash;
-    Function GetAdler32: TAdler32;
+    Function GetMD4Hasher: TMD4Hash;
+    Function GetMD4: TMD4;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    property Adler32Hasher: TAdler32Hash read GetAdler32Hasher;
-    property Adler32: TAdler32 read GetAdler32;
+    property MD4Hasher: TMD4Hash read GetMD4Hasher;
+    property MD4: TMD4 read GetMD4;
   end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerWriter
+                                TMD4LayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerWriter - class declaration
+    TMD4LayerWriter - class declaration
 ===============================================================================}
 type
-  TAdler32LayerWriter = class(TStreamHashLayerWriter)
+  TMD4LayerWriter = class(TBlockHashLayerWriter)
   private
-    Function GetAdler32Hasher: TAdler32Hash;
-    Function GetAdler32: TAdler32;
+    Function GetMD4Hasher: TMD4Hash;
+    Function GetMD4: TMD4;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    property Adler32Hasher: TAdler32Hash read GetAdler32Hasher;
-    property Adler32: TAdler32 read GetAdler32;
+    property MD4Hasher: TMD4Hash read GetMD4Hasher;
+    property MD4: TMD4 read GetMD4;
   end;
 
 implementation
@@ -56,70 +56,70 @@ uses
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerReader
+                                TMD4LayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerReader - class implementation
+    TMD4LayerReader - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TAdler32LayerReader - private methods
+    TMD4LayerReader - private methods
 -------------------------------------------------------------------------------}
 
-Function TAdler32LayerReader.GetAdler32Hasher: TAdler32Hash;
+Function TMD4LayerReader.GetMD4Hasher: TMD4Hash;
 begin
-Result := TAdler32Hash(fHasher);
+Result := TMD4Hash(fHasher);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TAdler32LayerReader.GetAdler32: TAdler32;
+Function TMD4LayerReader.GetMD4: TMD4;
 begin
-Result := TAdler32Hash(fHasher).Adler32;
+Result := TMD4Hash(fHasher).MD4;
 end;
 
 {-------------------------------------------------------------------------------
-    TAdler32LayerReader - protected methods
+    TMD4LayerReader - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TAdler32LayerReader.Initialize(Params: TSimpleNamedValues);
+procedure TMD4LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fHasher := TAdler32Hash.Create;
+fHasher := TMD4Hash.Create;
 end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerWriter
+                                TMD4LayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerWriter - class implementation
+    TMD4LayerWriter - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TAdler32LayerWriter - private methods
+    TMD4LayerWriter - private methods
 -------------------------------------------------------------------------------}
 
-Function TAdler32LayerWriter.GetAdler32Hasher: TAdler32Hash;
+Function TMD4LayerWriter.GetMD4Hasher: TMD4Hash;
 begin
-Result := TAdler32Hash(fHasher);
+Result := TMD4Hash(fHasher);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TAdler32LayerWriter.GetAdler32: TAdler32;
+Function TMD4LayerWriter.GetMD4: TMD4;
 begin
-Result := TAdler32Hash(fHasher).Adler32;
+Result := TMD4Hash(fHasher).MD4;
 end;
 
 {-------------------------------------------------------------------------------
-    TAdler32LayerWriter - protected methods
+    TMD4LayerWriter - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TAdler32LayerWriter.Initialize(Params: TSimpleNamedValues);
+procedure TMD4LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fHasher := TAdler32Hash.Create;
+fHasher := TMD4Hash.Create;
 end;
 
 {===============================================================================
@@ -127,6 +127,6 @@ end;
 ===============================================================================}
 
 initialization
-  RegisterLayer('LSRL_Adler32',TAdler32LayerReader,TAdler32LayerWriter); 
+  RegisterLayer('LSRL_MD4',TMD4LayerReader,TMD4LayerWriter);
 
 end.

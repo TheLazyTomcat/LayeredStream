@@ -1,4 +1,4 @@
-unit LayeredStream_Adler32Layer;
+unit LayeredStream_MD2Layer;
 
 {$INCLUDE './LayeredStream_defs.inc'}
 
@@ -6,47 +6,47 @@ interface
 
 uses
   Classes,
-  SimpleNamedValues, Adler32,
+  SimpleNamedValues, MD2,
   LayeredStream_HashLayer;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerReader
+                                TMD2LayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerReader - class declaration
+    TMD2LayerReader - class declaration
 ===============================================================================}
 type
-  TAdler32LayerReader = class(TStreamHashLayerReader)
+  TMD2LayerReader = class(TBlockHashLayerReader)
   private
-    Function GetAdler32Hasher: TAdler32Hash;
-    Function GetAdler32: TAdler32;
+    Function GetMD2Hasher: TMD2Hash;
+    Function GetMD2: TMD2;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    property Adler32Hasher: TAdler32Hash read GetAdler32Hasher;
-    property Adler32: TAdler32 read GetAdler32;
+    property MD2Hasher: TMD2Hash read GetMD2Hasher;
+    property MD2: TMD2 read GetMD2;
   end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerWriter
+                                TMD2LayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerWriter - class declaration
+    TMD2LayerWriter - class declaration
 ===============================================================================}
 type
-  TAdler32LayerWriter = class(TStreamHashLayerWriter)
+  TMD2LayerWriter = class(TBlockHashLayerWriter)
   private
-    Function GetAdler32Hasher: TAdler32Hash;
-    Function GetAdler32: TAdler32;
+    Function GetMD2Hasher: TMD2Hash;
+    Function GetMD2: TMD2;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    property Adler32Hasher: TAdler32Hash read GetAdler32Hasher;
-    property Adler32: TAdler32 read GetAdler32;
+    property MD2Hasher: TMD2Hash read GetMD2Hasher;
+    property MD2: TMD2 read GetMD2;
   end;
 
 implementation
@@ -56,70 +56,70 @@ uses
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerReader
+                                TMD2LayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerReader - class implementation
+    TMD2LayerReader - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TAdler32LayerReader - private methods
+    TMD2LayerReader - private methods
 -------------------------------------------------------------------------------}
 
-Function TAdler32LayerReader.GetAdler32Hasher: TAdler32Hash;
+Function TMD2LayerReader.GetMD2Hasher: TMD2Hash;
 begin
-Result := TAdler32Hash(fHasher);
+Result := TMD2Hash(fHasher);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TAdler32LayerReader.GetAdler32: TAdler32;
+Function TMD2LayerReader.GetMD2: TMD2;
 begin
-Result := TAdler32Hash(fHasher).Adler32;
+Result := TMD2Hash(fHasher).MD2;
 end;
 
 {-------------------------------------------------------------------------------
-    TAdler32LayerReader - protected methods
+    TMD2LayerReader - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TAdler32LayerReader.Initialize(Params: TSimpleNamedValues);
+procedure TMD2LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fHasher := TAdler32Hash.Create;
+fHasher := TMD2Hash.Create;
 end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
-                              TAdler32LayerWriter
+                                TMD2LayerWriter
 --------------------------------------------------------------------------------
 ===============================================================================}
 {===============================================================================
-    TAdler32LayerWriter - class implementation
+    TMD2LayerWriter - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TAdler32LayerWriter - private methods
+    TMD2LayerWriter - private methods
 -------------------------------------------------------------------------------}
 
-Function TAdler32LayerWriter.GetAdler32Hasher: TAdler32Hash;
+Function TMD2LayerWriter.GetMD2Hasher: TMD2Hash;
 begin
-Result := TAdler32Hash(fHasher);
+Result := TMD2Hash(fHasher);
 end;
 
 //------------------------------------------------------------------------------
 
-Function TAdler32LayerWriter.GetAdler32: TAdler32;
+Function TMD2LayerWriter.GetMD2: TMD2;
 begin
-Result := TAdler32Hash(fHasher).Adler32;
+Result := TMD2Hash(fHasher).MD2;
 end;
 
 {-------------------------------------------------------------------------------
-    TAdler32LayerWriter - protected methods
+    TMD2LayerWriter - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TAdler32LayerWriter.Initialize(Params: TSimpleNamedValues);
+procedure TMD2LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fHasher := TAdler32Hash.Create;
+fHasher := TMD2Hash.Create;
 end;
 
 {===============================================================================
@@ -127,6 +127,6 @@ end;
 ===============================================================================}
 
 initialization
-  RegisterLayer('LSRL_Adler32',TAdler32LayerReader,TAdler32LayerWriter); 
+  RegisterLayer('LSRL_MD2',TMD2LayerReader,TMD2LayerWriter);
 
 end.
