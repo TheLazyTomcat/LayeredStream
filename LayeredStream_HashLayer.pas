@@ -14,7 +14,7 @@ uses
 ===============================================================================}
 type
 {
-  ELSHasherNotAssigned is raised when no hasher object is passed to creation
+  ELSHasherNotAssigned is raised when no hasher object is passed to creation of
   TCustomHashLayerReader/Writer object.
 }
   ELSHasherNotAssigned = class(ELSException);
@@ -30,14 +30,17 @@ type
 type
   THashLayerReader = class(TLSLayerReader)
   protected
+    fHashing: Boolean;
     fHasher:  THashBase;
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
+    procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     procedure Init(Params: TSimpleNamedValues); override;
     procedure Final; override;
+    property Hashing: Boolean read fHashing;
     property Hasher: THashBase read fHasher;
   end;
 
@@ -52,14 +55,17 @@ type
 type
   THashLayerWriter = class(TLSLayerWriter)
   protected
+    fHashing: Boolean;
     fHasher:  THashBase;
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
+    procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     procedure Init(Params: TSimpleNamedValues); override;
     procedure Final; override;
+    property Hashing: Boolean read fHashing;
     property Hasher: THashBase read fHasher;
   end;
 
@@ -214,7 +220,16 @@ end;
 Function THashLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 begin
 Result := ReadOut(Buffer,Size);
-fHasher.Update(Buffer,Result);
+If (Result >= 0) and fHashing then
+  fHasher.Update(Buffer,Result);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure THashLayerReader.Initialize(Params: TSimpleNamedValues);
+begin
+inherited;
+fHashing := False;
 end;
 
 //------------------------------------------------------------------------------
@@ -240,6 +255,7 @@ end;
 procedure THashLayerReader.Init(Params: TSimpleNamedValues);
 begin
 inherited;
+fHashing := True;
 fHasher.Init;
 end;
 
@@ -248,6 +264,7 @@ end;
 procedure THashLayerReader.Final;
 begin
 fHasher.Final;
+fHashing := False;
 inherited;
 end;
 
@@ -273,7 +290,16 @@ end;
 Function THashLayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 begin
 Result := WriteOut(Buffer,Size);
-fHasher.Update(Buffer,Result);
+If (Result >= 0) and fHashing then
+  fHasher.Update(Buffer,Result);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure THashLayerWriter.Initialize(Params: TSimpleNamedValues);
+begin
+inherited;
+fHashing := False;
 end;
 
 //------------------------------------------------------------------------------
@@ -299,6 +325,7 @@ end;
 procedure THashLayerWriter.Init(Params: TSimpleNamedValues);
 begin
 inherited;
+fHashing := True;
 fHasher.Init;
 end;
 
@@ -307,6 +334,7 @@ end;
 procedure THashLayerWriter.Final;
 begin
 fHasher.Final;
+fHashing := False;
 inherited;
 end;
 
@@ -395,13 +423,8 @@ begin
 inherited;
 fHasher := nil;
 fOwnsHasher := False;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TCustomHashLayerReader.Hasher',nvtPointer) then
-      fHasher := THashBase(Params.PointerValue['TCustomHashLayerReader.Hasher']);
-    If Params.Exists('TCustomHashLayerReader.OwnsHasher',nvtBool) then
-      fOwnsHasher := Params.BoolValue['TCustomHashLayerReader.OwnsHasher'];
-  end;
+GetNamedValue(Params,'TCustomHashLayerReader.Hasher',Pointer(fHasher));
+GetNamedValue(Params,'TCustomHashLayerReader.OwnsHasher',fOwnsHasher);
 If not Assigned(fHasher) then
   raise ELSHasherNotAssigned.Create('TCustomHashLayerReader.Initialize: No hasher object provided.');
 end;
@@ -438,6 +461,7 @@ begin
 SetLength(Result,2);
 Result[0] := LayerObjectParam('TCustomHashLayerReader.Hasher',nvtPointer,[loprConstructor]);
 Result[1] := LayerObjectParam('TCustomHashLayerReader.OwnsHasher',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 //------------------------------------------------------------------------------
@@ -445,9 +469,7 @@ end;
 procedure TCustomHashLayerReader.Init(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TCustomHashLayerReader.OwnsHasher',nvtBool) then
-    fOwnsHasher := Params.BoolValue['TCustomHashLayerReader.OwnsHasher'];
+GetNamedValue(Params,'TCustomHashLayerReader.OwnsHasher',fOwnsHasher);
 end;
 
 //------------------------------------------------------------------------------
@@ -455,9 +477,7 @@ end;
 procedure TCustomHashLayerReader.Update(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TCustomHashLayerReader.OwnsHasher',nvtBool) then
-    fOwnsHasher := Params.BoolValue['TCustomHashLayerReader.OwnsHasher'];
+GetNamedValue(Params,'TCustomHashLayerReader.OwnsHasher',fOwnsHasher);
 end;
 
 {===============================================================================
@@ -477,13 +497,8 @@ begin
 inherited;
 fHasher := nil;
 fOwnsHasher := False;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TCustomHashLayerWriter.Hasher',nvtPointer) then
-      fHasher := THashBase(Params.PointerValue['TCustomHashLayerWriter.Hasher']);
-    If Params.Exists('TCustomHashLayerWriter.OwnsHasher',nvtBool) then
-      fOwnsHasher := Params.BoolValue['TCustomHashLayerWriter.OwnsHasher'];
-  end;
+GetNamedValue(Params,'TCustomHashLayerWriter.Hasher',Pointer(fHasher));
+GetNamedValue(Params,'TCustomHashLayerWriter.OwnsHasher',fOwnsHasher);
 If not Assigned(fHasher) then
   raise ELSHasherNotAssigned.Create('TCustomHashLayerWriter.Initialize: No hasher object provided.');
 end;
@@ -513,6 +528,7 @@ begin
 SetLength(Result,2);
 Result[0] := LayerObjectParam('TCustomHashLayerWriter.Hasher',nvtPointer,[loprConstructor]);
 Result[1] := LayerObjectParam('TCustomHashLayerWriter.OwnsHasher',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 //------------------------------------------------------------------------------
@@ -520,9 +536,7 @@ end;
 procedure TCustomHashLayerWriter.Init(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TCustomHashLayerWriter.OwnsHasher',nvtBool) then
-    fOwnsHasher := Params.BoolValue['TCustomHashLayerWriter.OwnsHasher'];
+GetNamedValue(Params,'TCustomHashLayerWriter.OwnsHasher',fOwnsHasher);
 end;
 
 //------------------------------------------------------------------------------
@@ -530,9 +544,7 @@ end;
 procedure TCustomHashLayerWriter.Update(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TCustomHashLayerWriter.OwnsHasher',nvtBool) then
-    fOwnsHasher := Params.BoolValue['TCustomHashLayerWriter.OwnsHasher'];
+GetNamedValue(Params,'TCustomHashLayerWriter.OwnsHasher',fOwnsHasher);
 end;
 
 {===============================================================================

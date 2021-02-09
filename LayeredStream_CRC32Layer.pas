@@ -60,10 +60,13 @@ uses
   LayeredStream_Layers,
   LayeredStream_HashLayer;
 
+{===============================================================================
+    Values for parameters passing
+===============================================================================}
 const
-  CRC32CLASS_PKZIP      = 0;
-  CRC32CLASS_CASTAGNOLI = 1;
-  CRC32CLASS_CUSTOM     = 2;
+  CRC32_CLASS_PKZIP      = 0;
+  CRC32_CLASS_CASTAGNOLI = 1;
+  CRC32_CLASS_CUSTOM     = 2;
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -117,34 +120,38 @@ uses
 ===============================================================================}
 
 Function CreateHasherCommon(const Prefix: String; Params: TSimpleNamedValues): TCRC32BaseHash;
+var
+  IntTemp:  Integer;
+  StrTemp:  String;
+  BoolTemp: Boolean;
 begin
-If Params.Exists(Prefix + '.Class',nvtInteger) then
-  case Params.IntegerValue[Prefix + '.Class'] of
-    CRC32CLASS_PKZIP:
+If GetNamedValue(Params,Prefix + '.Class',IntTemp) then
+  case IntTemp of
+    CRC32_CLASS_PKZIP:
       Result := TCRC32Hash.Create;
-    CRC32CLASS_CASTAGNOLI:
+    CRC32_CLASS_CASTAGNOLI:
       Result := TCRC32CHash.Create;
-    CRC32CLASS_CUSTOM:
+    CRC32_CLASS_CUSTOM:
       begin
         Result := TCRC32CustomHash.Create;
-        If Params.Exists(Prefix + '.PresetIndex',nvtInteger) then
-          TCRC32CustomHash(Result).LoadPreset(Params.IntegerValue[Prefix + '.PresetIndex'])
-        else If Params.Exists(Prefix + '.PresetName',nvtString) then
-          TCRC32CustomHash(Result).LoadPreset(Params.StringValue[Prefix + '.PresetName'])
+        If GetNamedValue(Params,Prefix + '.PresetIndex',IntTemp) then
+          TCRC32CustomHash(Result).LoadPreset(IntTemp)
+        else If GetNamedValue(Params,Prefix + '.PresetName',StrTemp) then
+          TCRC32CustomHash(Result).LoadPreset(StrTemp)
         else
           begin
-            If Params.Exists(Prefix + '.Polynomial',nvtInteger) then
-              TCRC32CustomHash(Result).CRC32Poly := TCRC32Sys(Params.IntegerValue[Prefix + '.Polynomial'])
-            else If Params.Exists(Prefix + '.PolynomialRef',nvtInteger) then
-              TCRC32CustomHash(Result).CRC32PolyRef := TCRC32Sys(Params.IntegerValue[Prefix + '.PolynomialRef']);
-            If Params.Exists(Prefix + '.InitialValue',nvtInteger) then
-              TCRC32CustomHash(Result).InitialValue := TCRC32(Params.IntegerValue[Prefix + '.InitialValue']);
-            If Params.Exists(Prefix + '.ReflectIn',nvtBool) then
-              TCRC32CustomHash(Result).ReflectIn := Params.BoolValue[Prefix + '.ReflectIn'];
-            If Params.Exists(Prefix + '.ReflectOut',nvtBool) then
-              TCRC32CustomHash(Result).ReflectOut := Params.BoolValue[Prefix + '.ReflectOut'];
-            If Params.Exists(Prefix + '.XOROutValue',nvtInteger) then
-              TCRC32CustomHash(Result).XOROutValue := TCRC32(Params.IntegerValue[Prefix + '.XOROutValue']);
+            If GetNamedValue(Params,Prefix + '.Polynomial',IntTemp) then
+              TCRC32CustomHash(Result).CRC32Poly := TCRC32Sys(IntTemp)
+            else If GetNamedValue(Params,Prefix + '.PolynomialRef',IntTemp) then
+              TCRC32CustomHash(Result).CRC32PolyRef := TCRC32Sys(IntTemp);
+            If GetNamedValue(Params,Prefix + '.InitialValue',IntTemp) then
+              TCRC32CustomHash(Result).InitialValue := TCRC32(IntTemp);
+            If GetNamedValue(Params,Prefix + '.ReflectIn',BoolTemp) then
+              TCRC32CustomHash(Result).ReflectIn := BoolTemp;
+            If GetNamedValue(Params,Prefix + '.ReflectOut',BoolTemp) then
+              TCRC32CustomHash(Result).ReflectOut := BoolTemp;
+            If GetNamedValue(Params,Prefix + '.XOROutValue',IntTemp) then
+              TCRC32CustomHash(Result).XOROutValue := TCRC32(IntTemp);
           end;
       end;
   else
@@ -206,6 +213,7 @@ Result[5] := LayerObjectParam('TCRC32LayerReader.InitialValue',nvtInteger,[loprC
 Result[6] := LayerObjectParam('TCRC32LayerReader.ReflectIn',nvtBool,[loprConstructor]);
 Result[7] := LayerObjectParam('TCRC32LayerReader.ReflectOut',nvtBool,[loprConstructor]);
 Result[8] := LayerObjectParam('TCRC32LayerReader.XOROutValue',nvtInteger,[loprConstructor]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 {===============================================================================
@@ -261,6 +269,7 @@ Result[5] := LayerObjectParam('TCRC32LayerWriter.InitialValue',nvtInteger,[loprC
 Result[6] := LayerObjectParam('TCRC32LayerWriter.ReflectIn',nvtBool,[loprConstructor]);
 Result[7] := LayerObjectParam('TCRC32LayerWriter.ReflectOut',nvtBool,[loprConstructor]);
 Result[8] := LayerObjectParam('TCRC32LayerWriter.XOROutValue',nvtInteger,[loprConstructor]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 {===============================================================================

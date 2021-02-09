@@ -397,7 +397,8 @@ uses
   LayeredStream_SHA0Layer,
   LayeredStream_SHA1Layer,
   LayeredStream_SHA2Layer,
-  LayeredStream_SHA3Layer;
+  LayeredStream_SHA3Layer,
+  LayeredStream_ZLIBLayer;
 
 {$IFDEF FPC_DisableWarns}
   {$DEFINE FPCDWM}

@@ -204,16 +204,16 @@ inherited;
 fDebugging := False;
 end;
 
-//------------------------------------------------------------------------------
+{-------------------------------------------------------------------------------
+    TDebugLayerReader - public methods
+-------------------------------------------------------------------------------}
 
 procedure TDebugLayerReader.DebugStart;
 begin
 fDebugging := True;
 end;
 
-{-------------------------------------------------------------------------------
-    TDebugLayerReader - public methods
--------------------------------------------------------------------------------}
+//------------------------------------------------------------------------------
 
 procedure TDebugLayerReader.DebugStop;
 begin
@@ -239,16 +239,16 @@ inherited;
 fDebugging := False;
 end;
 
-//------------------------------------------------------------------------------
+{-------------------------------------------------------------------------------
+    TDebugLayerWriter - public methods
+-------------------------------------------------------------------------------}
 
 procedure TDebugLayerWriter.DebugStart;
 begin
 fDebugging := True;
 end;
 
-{-------------------------------------------------------------------------------
-    TDebugLayerWriter - public methods
--------------------------------------------------------------------------------}
+//------------------------------------------------------------------------------
 
 procedure TDebugLayerWriter.DebugStop;
 begin
@@ -265,7 +265,7 @@ end;
     TDebugLowLayerReader - class implementation
 ===============================================================================}
 {-------------------------------------------------------------------------------
-    TDebugLowLayerReader - protected methods
+    TDebugLowLayerReader - protected methods    
 -------------------------------------------------------------------------------}
 
 {$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
@@ -350,7 +350,7 @@ begin
   buffer and size are ignored, internal buffer is used and size is randomized,
   return value is a true return value from a call to ReadOut
 
-  not that buffer can be nil^ since it is not accessed in any way
+  note that buffer can be nil^ since it is not accessed in any way
 }
 If fDebugging then
   begin
@@ -376,9 +376,7 @@ begin
 inherited;
 Randomize;
 fSize := DEBUGLAYER_SIZE_DEFAULT;
-If Assigned(Params) then
-  If Params.Exists('TDebugHighLayerReader.Size',nvtInteger) then
-    fSize := Params.IntegerValue['TDebugHighLayerReader.Size'];
+GetIntegerNamedValue(Params,'TDebugHighLayerReader.Size',fSize);
 GetMem(fMemory,fSize);
 end;
 
@@ -405,6 +403,7 @@ class Function TDebugHighLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
 Result[0] := LayerObjectParam('TDebugHighLayerReader.Size',nvtInteger,[loprConstructor]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 //------------------------------------------------------------------------------
@@ -532,9 +531,7 @@ begin
 inherited;
 Randomize;
 fSize := DEBUGLAYER_SIZE_DEFAULT;
-If Assigned(Params) then
-  If Params.Exists('TDebugHighLayerWriter.Size',nvtInteger) then
-    fSize := Params.IntegerValue['TDebugHighLayerWriter.Size'];
+GetIntegerNamedValue(Params,'TDebugHighLayerWriter.Size',fSize);
 GetMem(fMemory,fSize);
 end;
 
@@ -561,6 +558,7 @@ class Function TDebugHighLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
 Result[0] := LayerObjectParam('TDebugHighLayerWriter.Size',nvtInteger,[loprConstructor]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 

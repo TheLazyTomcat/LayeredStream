@@ -40,7 +40,7 @@ type
 
 {
   TLSLayerObjectProperty/TLSLayerObjectProperties types are used by layer
-  objects to return information about themselves (class method
+  objects to return information about themselves (via a class method
   LayerObjectProperties) - what they do with data, how they operate or what
   they need for a proper function.
 
@@ -103,6 +103,8 @@ type
                           reality 128 bytes were written (100 passed + 28
                           generated)
 }
+  {$message 'rework - reader should always try to read full request, partial/zero read is allowed only at the end of stream'}
+  {$message 'rework - writer should, if possible, write everything requested'}
   TLSLayerObjectProperty = (
     // object properties
     lopNeedsInit,     // layer object requires a call to Init for it to proper function
@@ -170,6 +172,13 @@ type
 }
 Function LayerObjectParam(const Name: String; ValueType: TSNVNamedValueType; Receivers: TLSLayerObjectParamReceivers): TLSLayerObjectParam;
 
+{
+  Function LayerObjectParamsJoin should be always used to add new parameters to
+  params inherited from descendants.
+  Parameters from B are added at the end of A.
+}
+procedure LayerObjectParamsJoin(var A: TLSLayerObjectParams; const B: TLSLayerObjectParams);
+
 //------------------------------------------------------------------------------
 {
   connection events
@@ -202,6 +211,11 @@ type
       when they are called
     - be aware that seeking might go through the counterpart object and
       circumvent current instance
+    - readers must always do everthing they can to read the full requested
+      amount of data, partial or zero reads should happen only at the end of
+      stream
+    - writers must always write all passed data, partial writes should happen
+      only when really necessary
 }
 type
   TLSLayerObjectBase = class(TCustomObject)
@@ -326,6 +340,22 @@ begin
 Result.Name := Name;
 Result.ValueType := ValueType;
 Result.Receivers := Receivers;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure LayerObjectParamsJoin(var A: TLSLayerObjectParams; const B: TLSLayerObjectParams);
+var
+  AOldLen:  Integer;
+  i:        Integer;
+begin
+If Length(B) > 0 then
+  begin
+    AOldLen := Length(A);
+    SetLength(A,AOldLen + Length(B));
+    For i := Low(B) to High(B) do
+      A[AOldLen + i] := B[i];
+  end;
 end;
 
 {===============================================================================

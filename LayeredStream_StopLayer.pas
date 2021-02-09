@@ -68,6 +68,7 @@ type
   private
     fStopSeek:    Boolean;
     fSilentStop:  Boolean;
+    fReadZeroes:  Boolean;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
@@ -79,6 +80,7 @@ type
     procedure Update(Params: TSimpleNamedValues); override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
     property SilentStop: Boolean read fSilentStop write fSilentStop;
+    property ReadZeroes: Boolean read fReadZeroes write fReadZeroes;
   end;
 
 {===============================================================================
@@ -94,6 +96,7 @@ type
   private
     fStopSeek:    Boolean;
     fSilentStop:  Boolean;
+    fWriteSink:   Boolean;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
@@ -105,6 +108,7 @@ type
     procedure Update(Params: TSimpleNamedValues); override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
     property SilentStop: Boolean read fSilentStop write fSilentStop;
+    property WriteSink: Boolean read fWriteSink write fWriteSink;
   end;
 
 implementation
@@ -141,9 +145,19 @@ end;
 Function TStopLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 begin
 If fSilentStop then
-  Result := 0
-else
-  raise TLSLayerStopException.CreateFmt('TStopLayerReader.ReadActive: Stopped read (%p,%d).',[@Buffer,Size]);
+  begin
+    If Size > 0 then
+      begin
+        If fReadZeroes then
+          begin
+            FillChar(Buffer,Size,0);
+            Result := Size;
+          end
+        else Result := 0;
+      end
+    else Result := 0;
+  end
+else raise TLSLayerStopException.CreateFmt('TStopLayerReader.ReadActive: Stopped read (%p,%d).',[@Buffer,Size]);
 end;
 
 //------------------------------------------------------------------------------
@@ -153,13 +167,10 @@ begin
 inherited;
 fStopSeek := False;
 fSilentStop := True;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TStopLayerReader.StopSeek',nvtBool) then
-      fStopSeek := Params.BoolValue['TStopLayerReader.StopSeek'];
-    If Params.Exists('TStopLayerReader.SilentStop',nvtBool) then
-      fSilentStop := Params.BoolValue['TStopLayerReader.SilentStop'];
-  end;
+fReadZeroes := True;
+GetNamedValue(Params,'TStopLayerReader.StopSeek',fStopSeek);
+GetNamedValue(Params,'TStopLayerReader.SilentStop',fSilentStop);
+GetNamedValue(Params,'TStopLayerReader.ReadZeroes',fReadZeroes);
 end;
 
 {-------------------------------------------------------------------------------
@@ -175,9 +186,11 @@ end;
 
 class Function TStopLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
-SetLength(Result,2);
+SetLength(Result,3);
 Result[0] := LayerObjectParam('TStopLayerReader.StopSeek',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 Result[1] := LayerObjectParam('TStopLayerReader.SilentStop',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
+Result[2] := LayerObjectParam('TStopLayerReader.ReadZeroes',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 //------------------------------------------------------------------------------
@@ -185,13 +198,9 @@ end;
 procedure TStopLayerReader.Init(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TStopLayerReader.StopSeek',nvtBool) then
-      fStopSeek := Params.BoolValue['TStopLayerReader.StopSeek'];
-    If Params.Exists('TStopLayerReader.SilentStop',nvtBool) then
-      fSilentStop := Params.BoolValue['TStopLayerReader.SilentStop'];
-  end;
+GetNamedValue(Params,'TStopLayerReader.StopSeek',fStopSeek);
+GetNamedValue(Params,'TStopLayerReader.SilentStop',fSilentStop);
+GetNamedValue(Params,'TStopLayerReader.ReadZeroes',fReadZeroes);
 end;
 
 //------------------------------------------------------------------------------
@@ -199,13 +208,9 @@ end;
 procedure TStopLayerReader.Update(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TStopLayerReader.StopSeek',nvtBool) then
-      fStopSeek := Params.BoolValue['TStopLayerReader.StopSeek'];
-    If Params.Exists('TStopLayerReader.SilentStop',nvtBool) then
-      fSilentStop := Params.BoolValue['TStopLayerReader.SilentStop'];
-  end;
+GetNamedValue(Params,'TStopLayerReader.StopSeek',fStopSeek);
+GetNamedValue(Params,'TStopLayerReader.SilentStop',fSilentStop);
+GetNamedValue(Params,'TStopLayerReader.ReadZeroes',fReadZeroes);
 end;
 
 
@@ -238,9 +243,17 @@ end;
 Function TStopLayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 begin
 If fSilentStop then
-  Result := 0
-else
-  raise TLSLayerStopException.CreateFmt('TStopLayerWriter.WriteActive: Stopped write (%p,%d).',[@Buffer,Size]);
+  begin
+    If Size > 0 then
+      begin
+        If fWriteSink then
+          Result := Size
+        else
+          Result := 0;
+      end
+    else Result := 0;
+  end
+else raise TLSLayerStopException.CreateFmt('TStopLayerWriter.WriteActive: Stopped write (%p,%d).',[@Buffer,Size]);
 end;
 
 //------------------------------------------------------------------------------
@@ -250,13 +263,10 @@ begin
 inherited;
 fStopSeek := False;
 fSilentStop := True;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TStopLayerWriter.StopSeek',nvtBool) then
-      fStopSeek := Params.BoolValue['TStopLayerWriter.StopSeek'];
-    If Params.Exists('TStopLayerWriter.SilentStop',nvtBool) then
-      fSilentStop := Params.BoolValue['TStopLayerWriter.SilentStop'];
-  end;
+fWriteSink := True;
+GetNamedValue(Params,'TStopLayerWriter.StopSeek',fStopSeek);
+GetNamedValue(Params,'TStopLayerWriter.SilentStop',fSilentStop);
+GetNamedValue(Params,'TStopLayerWriter.WriteSink',fWriteSink);
 end;
 
 {-------------------------------------------------------------------------------
@@ -272,9 +282,11 @@ end;
 
 class Function TStopLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
-SetLength(Result,2);
+SetLength(Result,3);
 Result[0] := LayerObjectParam('TStopLayerWriter.StopSeek',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 Result[1] := LayerObjectParam('TStopLayerWriter.SilentStop',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
+Result[2] := LayerObjectParam('TStopLayerWriter.WriteSink',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 //------------------------------------------------------------------------------
@@ -282,13 +294,9 @@ end;
 procedure TStopLayerWriter.Init(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TStopLayerWriter.StopSeek',nvtBool) then
-      fStopSeek := Params.BoolValue['TStopLayerWriter.StopSeek'];
-    If Params.Exists('TStopLayerWriter.SilentStop',nvtBool) then
-      fSilentStop := Params.BoolValue['TStopLayerWriter.SilentStop'];
-  end;
+GetNamedValue(Params,'TStopLayerWriter.StopSeek',fStopSeek);
+GetNamedValue(Params,'TStopLayerWriter.SilentStop',fSilentStop);
+GetNamedValue(Params,'TStopLayerWriter.WriteSink',fWriteSink);
 end;
 
 //------------------------------------------------------------------------------
@@ -296,13 +304,9 @@ end;
 procedure TStopLayerWriter.Update(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TStopLayerWriter.StopSeek',nvtBool) then
-      fStopSeek := Params.BoolValue['TStopLayerWriter.StopSeek'];
-    If Params.Exists('TStopLayerWriter.SilentStop',nvtBool) then
-      fSilentStop := Params.BoolValue['TStopLayerWriter.SilentStop'];
-  end;
+GetNamedValue(Params,'TStopLayerWriter.StopSeek',fStopSeek);
+GetNamedValue(Params,'TStopLayerWriter.SilentStop',fSilentStop);
+GetNamedValue(Params,'TStopLayerWriter.WriteSink',fWriteSink);
 end;
 
 {===============================================================================

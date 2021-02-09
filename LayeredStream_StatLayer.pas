@@ -159,11 +159,9 @@ end;
 procedure TStatLayerReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fFullStats := False;
 ClearStats;
-If Assigned(Params) then
-  If Params.Exists('TStatLayerReader.FullStats',nvtBool) then
-    fFullStats := Params.BoolValue['TStatLayerReader.FullStats'];
+fFullStats := False;
+GetNamedValue(Params,'TStatLayerReader.FullStats',fFullStats);
 end;
 
 //------------------------------------------------------------------------------
@@ -190,22 +188,21 @@ begin
 SetLength(Result,2);
 Result[0] := LayerObjectParam('TStatLayerReader.FullStats',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 Result[1] := LayerObjectParam('TStatLayerReader.KeepStats',nvtBool,[loprInitializer]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 //------------------------------------------------------------------------------
 
 procedure TStatLayerReader.Init(Params: TSimpleNamedValues);
+var
+  KeepStats:  Boolean;
 begin
 inherited;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TStatLayerReader.FullStats',nvtBool) then
-      fFullStats := Params.BoolValue['TStatLayerReader.FullStats'];
-    If Params.Exists('TStatLayerReader.KeepStats',nvtBool) then
-      If not Params.BoolValue['TStatLayerReader.KeepStats'] then
-        ClearStats;
-  end
-else ClearStats;
+GetNamedValue(Params,'TStatLayerReader.FullStats',fFullStats);
+KeepStats := False;
+GetNamedValue(Params,'TStatLayerReader.KeepStats',KeepStats);
+If not KeepStats then
+  ClearStats;
 end;
 
 //------------------------------------------------------------------------------
@@ -213,9 +210,7 @@ end;
 procedure TStatLayerReader.Update(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TStatLayerReader.FullStats',nvtBool) then
-    fFullStats := Params.BoolValue['TStatLayerReader.FullStats'];
+GetNamedValue(Params,'TStatLayerReader.FullStats',fFullStats);
 end;
 
 
@@ -262,11 +257,9 @@ end;
 procedure TStatLayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-fFullStats := False;
 ClearStats;
-If Assigned(Params) then
-  If Params.Exists('TStatLayerWriter.FullStats',nvtBool) then
-    fFullStats := Params.BoolValue['TStatLayerWriter.FullStats'];
+fFullStats := False;
+GetNamedValue(Params,'TStatLayerWriter.FullStats',fFullStats);
 end;
 
 //------------------------------------------------------------------------------
@@ -293,22 +286,21 @@ begin
 SetLength(Result,2);
 Result[0] := LayerObjectParam('TStatLayerWriter.FullStats',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 Result[1] := LayerObjectParam('TStatLayerWriter.KeepStats',nvtBool,[loprInitializer]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 //------------------------------------------------------------------------------
 
 procedure TStatLayerWriter.Init(Params: TSimpleNamedValues);
+var
+  KeepStats:  Boolean;
 begin
 inherited;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TStatLayerWriter.FullStats',nvtBool) then
-      fFullStats := Params.BoolValue['TStatLayerWriter.FullStats'];
-    If Params.Exists('TStatLayerWriter.KeepStats',nvtBool) then
-      If not Params.BoolValue['TStatLayerWriter.KeepStats'] then
-        ClearStats;
-  end
-else ClearStats;
+GetNamedValue(Params,'TStatLayerWriter.FullStats',fFullStats);
+KeepStats := False;
+GetNamedValue(Params,'TStatLayerWriter.KeepStats',KeepStats);
+If not KeepStats then
+  ClearStats;
 end;
 
 //------------------------------------------------------------------------------
@@ -316,9 +308,7 @@ end;
 procedure TStatLayerWriter.Update(Params: TSimpleNamedValues);
 begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TStatLayerWriter.FullStats',nvtBool) then
-    fFullStats := Params.BoolValue['TStatLayerWriter.FullStats'];
+GetNamedValue(Params,'TStatLayerWriter.FullStats',fFullStats);
 end;
 
 {===============================================================================

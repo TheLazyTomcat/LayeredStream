@@ -404,6 +404,40 @@ type
 
 {===============================================================================
 --------------------------------------------------------------------------------
+                            TKeccakVarLenLayerReader
+--------------------------------------------------------------------------------
+===============================================================================}
+{===============================================================================
+    TKeccakVarLenLayerReader - class declaration
+===============================================================================}
+type
+  TKeccakVarLenLayerReader = class(TKeccakLayerReader)
+  protected
+    procedure Initialize(Params: TSimpleNamedValues); override;
+  public
+    class Function LayerObjectParams: TLSLayerObjectParams; override;
+    procedure Init(Params: TSimpleNamedValues); override;
+  end;
+
+{===============================================================================
+--------------------------------------------------------------------------------
+                            TKeccakVarLenLayerWriter
+--------------------------------------------------------------------------------
+===============================================================================}
+{===============================================================================
+    TKeccakVarLenLayerWriter - class declaration
+===============================================================================}
+type
+  TKeccakVarLenLayerWriter = class(TKeccakLayerWriter)
+  protected
+    procedure Initialize(Params: TSimpleNamedValues); override;
+  public
+    class Function LayerObjectParams: TLSLayerObjectParams; override;
+    procedure Init(Params: TSimpleNamedValues); override;
+  end;
+
+{===============================================================================
+--------------------------------------------------------------------------------
                               TKeccakCLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
@@ -411,7 +445,7 @@ type
     TKeccakCLayerReader - class declaration
 ===============================================================================}
 type
-  TKeccakCLayerReader = class(TKeccakLayerReader)
+  TKeccakCLayerReader = class(TKeccakVarLenLayerReader)
   private
     Function GetKeccakCHasher: TKeccakCHash;
     Function GetKeccakC: TKeccakC;
@@ -433,7 +467,7 @@ type
     TKeccakCLayerWriter - class declaration
 ===============================================================================}
 type
-  TKeccakCLayerWriter = class(TKeccakLayerWriter)
+  TKeccakCLayerWriter = class(TKeccakVarLenLayerWriter)
   private
     Function GetKeccakCHasher: TKeccakCHash;
     Function GetKeccakC: TKeccakC;
@@ -455,15 +489,13 @@ type
     TSHAKE128LayerReader - class declaration
 ===============================================================================}
 type
-  TSHAKE128LayerReader = class(TKeccakLayerReader)
+  TSHAKE128LayerReader = class(TKeccakVarLenLayerReader)
   private
     Function GetSHAKE128Hasher: TSHAKE128Hash;
     Function GetSHAKE128: TSHAKE128;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
     property SHAKE128Hasher: TSHAKE128Hash read GetSHAKE128Hasher;
     property SHAKE128: TSHAKE128 read GetSHAKE128;
   end;
@@ -477,15 +509,13 @@ type
     TSHAKE128LayerWriter - class declaration
 ===============================================================================}
 type
-  TSHAKE128LayerWriter = class(TKeccakLayerWriter)
+  TSHAKE128LayerWriter = class(TKeccakVarLenLayerWriter)
   private
     Function GetSHAKE128Hasher: TSHAKE128Hash;
     Function GetSHAKE128: TSHAKE128;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
     property SHAKE128Hasher: TSHAKE128Hash read GetSHAKE128Hasher;
     property SHAKE128: TSHAKE128 read GetSHAKE128;
   end;
@@ -499,15 +529,13 @@ type
     TSHAKE256LayerReader - class declaration
 ===============================================================================}
 type
-  TSHAKE256LayerReader = class(TKeccakLayerReader)
+  TSHAKE256LayerReader = class(TKeccakVarLenLayerReader)
   private
     Function GetSHAKE256Hasher: TSHAKE256Hash;
     Function GetSHAKE256: TSHAKE256;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
     property SHAKE256Hasher: TSHAKE256Hash read GetSHAKE256Hasher;
     property SHAKE256: TSHAKE256 read GetSHAKE256;
   end;
@@ -521,15 +549,13 @@ type
     TSHAKE256LayerWriter - class declaration
 ===============================================================================}
 type
-  TSHAKE256LayerWriter = class(TKeccakLayerWriter)
+  TSHAKE256LayerWriter = class(TKeccakVarLenLayerWriter)
   private
     Function GetSHAKE256Hasher: TSHAKE256Hash;
     Function GetSHAKE256: TSHAKE256;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
-    class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
     property SHAKE256Hasher: TSHAKE256Hash read GetSHAKE256Hasher;
     property SHAKE256: TSHAKE256 read GetSHAKE256;
   end;
@@ -1182,6 +1208,89 @@ end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
+                            TKeccakVarLenLayerReader
+--------------------------------------------------------------------------------
+===============================================================================}
+{===============================================================================
+    TKeccakVarLenLayerReader - class implementation
+===============================================================================}
+{-------------------------------------------------------------------------------
+    TKeccakVarLenLayerReader - protected methods
+-------------------------------------------------------------------------------}
+
+procedure TKeccakVarLenLayerReader.Initialize(Params: TSimpleNamedValues);
+var
+  Temp: Integer;
+begin
+inherited;
+If GetNamedValue(Params,'TKeccakVarLenLayerReader.HashBits',Temp) then
+  TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
+end;
+
+{-------------------------------------------------------------------------------
+    TKeccakVarLenLayerReader - public methods
+-------------------------------------------------------------------------------}
+
+class Function TKeccakVarLenLayerReader.LayerObjectParams: TLSLayerObjectParams;
+begin
+SetLength(Result,1);
+Result[0] := LayerObjectParam('TKeccakVarLenLayerReader.HashBits',nvtInteger,[loprConstructor,loprInitializer]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TKeccakVarLenLayerReader.Init(Params: TSimpleNamedValues);
+var
+  Temp: Integer;
+begin
+inherited;
+If GetNamedValue(Params,'TKeccakVarLenLayerReader.HashBits',Temp) then
+  TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
+end;
+
+{===============================================================================
+--------------------------------------------------------------------------------
+                            TKeccakVarLenLayerWriter
+--------------------------------------------------------------------------------
+===============================================================================}
+{===============================================================================
+    TKeccakVarLenLayerWriter - class implementation
+===============================================================================}
+
+procedure TKeccakVarLenLayerWriter.Initialize(Params: TSimpleNamedValues);
+var
+  Temp: Integer;
+begin
+inherited;
+If GetNamedValue(Params,'TKeccakVarLenLayerWriter.HashBits',Temp) then
+  TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
+end;
+
+{-------------------------------------------------------------------------------
+    TKeccakVarLenLayerWriter - public methods
+-------------------------------------------------------------------------------}
+
+class Function TKeccakVarLenLayerWriter.LayerObjectParams: TLSLayerObjectParams;
+begin
+SetLength(Result,1);
+Result[0] := LayerObjectParam('TKeccakVarLenLayerWriter.HashBits',nvtInteger,[loprConstructor,loprInitializer]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TKeccakVarLenLayerWriter.Init(Params: TSimpleNamedValues);
+var
+  Temp: Integer;
+begin
+inherited;
+If GetNamedValue(Params,'TKeccakVarLenLayerWriter.HashBits',Temp) Then
+  TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
+end;
+
+{===============================================================================
+--------------------------------------------------------------------------------
                               TKeccakCLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
@@ -1209,16 +1318,13 @@ end;
 -------------------------------------------------------------------------------}
 
 procedure TKeccakCLayerReader.Initialize(Params: TSimpleNamedValues);
+var
+  Temp: Integer;
 begin
-inherited;
 fHasher := TKeccakCHash.Create;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TKeccakCLayerReader.HashBits',nvtInteger) then
-      TKeccakCHash(fHasher).HashBits := UInt32(Params.IntegerValue['TKeccakCLayerReader.HashBits']);
-    If Params.Exists('TKeccakCLayerReader.Capacity',nvtInteger) then
-      TKeccakCHash(fHasher).Capacity := UInt32(Params.IntegerValue['TKeccakCLayerReader.Capacity']);
-  end;
+inherited;  // hasher is accessed here
+If GetNamedValue(Params,'TKeccakCLayerReader.Capacity',Temp) then
+  TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1227,23 +1333,20 @@ end;
 
 class Function TKeccakCLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
-SetLength(Result,2);
-Result[0] := LayerObjectParam('TKeccakCLayerReader.HashBits',nvtInteger,[loprConstructor,loprInitializer]);
-Result[1] := LayerObjectParam('TKeccakCLayerReader.Capacity',nvtInteger,[loprConstructor,loprInitializer]);
+SetLength(Result,1);
+Result[0] := LayerObjectParam('TKeccakCLayerReader.Capacity',nvtInteger,[loprConstructor,loprInitializer]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 //------------------------------------------------------------------------------
 
 procedure TKeccakCLayerReader.Init(Params: TSimpleNamedValues);
+var
+  Temp: Integer;
 begin
 inherited;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TKeccakCLayerReader.HashBits',nvtInteger) then
-      TKeccakCHash(fHasher).HashBits := UInt32(Params.IntegerValue['TKeccakCLayerReader.HashBits']);
-    If Params.Exists('TKeccakCLayerReader.Capacity',nvtInteger) then
-      TKeccakCHash(fHasher).Capacity := UInt32(Params.IntegerValue['TKeccakCLayerReader.Capacity']);
-  end;
+If GetNamedValue(Params,'TKeccakCLayerReader.Capacity',Temp) then
+  TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
 
 {===============================================================================
@@ -1275,16 +1378,13 @@ end;
 -------------------------------------------------------------------------------}
 
 procedure TKeccakCLayerWriter.Initialize(Params: TSimpleNamedValues);
+var
+  Temp: Integer;
 begin
-inherited;
 fHasher := TKeccakCHash.Create;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TKeccakCLayerWriter.HashBits',nvtInteger) then
-      TKeccakCHash(fHasher).HashBits := UInt32(Params.IntegerValue['TKeccakCLayerWriter.HashBits']);
-    If Params.Exists('TKeccakCLayerWriter.Capacity',nvtInteger) then
-      TKeccakCHash(fHasher).Capacity := UInt32(Params.IntegerValue['TKeccakCLayerWriter.Capacity']);
-  end;
+inherited;  // hasher is accessed here
+If GetNamedValue(Params,'TKeccakCLayerWriter.Capacity',Temp) then
+  TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1293,23 +1393,20 @@ end;
 
 class Function TKeccakCLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin
-SetLength(Result,2);
-Result[0] := LayerObjectParam('TKeccakCLayerWriter.HashBits',nvtInteger,[loprConstructor,loprInitializer]);
-Result[1] := LayerObjectParam('TKeccakCLayerWriter.Capacity',nvtInteger,[loprConstructor,loprInitializer]);
+SetLength(Result,1);
+Result[0] := LayerObjectParam('TKeccakCLayerWriter.Capacity',nvtInteger,[loprConstructor,loprInitializer]);
+LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
 //------------------------------------------------------------------------------
 
 procedure TKeccakCLayerWriter.Init(Params: TSimpleNamedValues);
+var
+  Temp: Integer;
 begin
 inherited;
-If Assigned(Params) then
-  begin
-    If Params.Exists('TKeccakCLayerWriter.HashBits',nvtInteger) then
-      TKeccakCHash(fHasher).HashBits := UInt32(Params.IntegerValue['TKeccakCLayerWriter.HashBits']);
-    If Params.Exists('TKeccakCLayerWriter.Capacity',nvtInteger) then
-      TKeccakCHash(fHasher).Capacity := UInt32(Params.IntegerValue['TKeccakCLayerWriter.Capacity']);
-  end;
+If GetNamedValue(Params,'TKeccakCLayerWriter.Capacity',Temp) then
+  TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
 
 {===============================================================================
@@ -1342,31 +1439,8 @@ end;
 
 procedure TSHAKE128LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHAKE128Hash.Create;
-If Assigned(Params) then
-  If Params.Exists('TSHAKE128LayerReader.HashBits',nvtInteger) then
-    TSHAKE128Hash(fHasher).HashBits := UInt32(Params.IntegerValue['TSHAKE128LayerReader.HashBits']);
-end;
-
-{-------------------------------------------------------------------------------
-    TSHAKE128LayerReader - public methods
--------------------------------------------------------------------------------}
-
-class Function TSHAKE128LayerReader.LayerObjectParams: TLSLayerObjectParams;
-begin
-SetLength(Result,1);
-Result[0] := LayerObjectParam('TSHAKE128LayerReader.HashBits',nvtInteger,[loprConstructor,loprInitializer]);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TSHAKE128LayerReader.Init(Params: TSimpleNamedValues);
-begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TSHAKE128LayerReader.HashBits',nvtInteger) then
-    TSHAKE128Hash(fHasher).HashBits := UInt32(Params.IntegerValue['TSHAKE128LayerReader.HashBits']);
 end;
 
 {===============================================================================
@@ -1399,31 +1473,8 @@ end;
 
 procedure TSHAKE128LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHAKE128Hash.Create;
-If Assigned(Params) then
-  If Params.Exists('TSHAKE128LayerWriter.HashBits',nvtInteger) then
-    TSHAKE128Hash(fHasher).HashBits := UInt32(Params.IntegerValue['TSHAKE128LayerWriter.HashBits']);
-end;
-
-{-------------------------------------------------------------------------------
-    TSHAKE128LayerWriter - public methods
--------------------------------------------------------------------------------}
-
-class Function TSHAKE128LayerWriter.LayerObjectParams: TLSLayerObjectParams;
-begin
-SetLength(Result,1);
-Result[0] := LayerObjectParam('TSHAKE128LayerWriter.HashBits',nvtInteger,[loprConstructor,loprInitializer]);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TSHAKE128LayerWriter.Init(Params: TSimpleNamedValues);
-begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TSHAKE128LayerWriter.HashBits',nvtInteger) then
-    TSHAKE128Hash(fHasher).HashBits := UInt32(Params.IntegerValue['TSHAKE128LayerWriter.HashBits']);
 end;
 
 {===============================================================================
@@ -1456,31 +1507,8 @@ end;
 
 procedure TSHAKE256LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHAKE256Hash.Create;
-If Assigned(Params) then
-  If Params.Exists('TSHAKE256LayerReader.HashBits',nvtInteger) then
-    TSHAKE256Hash(fHasher).HashBits := UInt32(Params.IntegerValue['TSHAKE256LayerReader.HashBits']);
-end;
-
-{-------------------------------------------------------------------------------
-    TSHAKE256LayerReader - public methods
--------------------------------------------------------------------------------}
-
-class Function TSHAKE256LayerReader.LayerObjectParams: TLSLayerObjectParams;
-begin
-SetLength(Result,1);
-Result[0] := LayerObjectParam('TSHAKE256LayerReader.HashBits',nvtInteger,[loprConstructor,loprInitializer]);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TSHAKE256LayerReader.Init(Params: TSimpleNamedValues);
-begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TSHAKE256LayerReader.HashBits',nvtInteger) then
-    TSHAKE256Hash(fHasher).HashBits := UInt32(Params.IntegerValue['TSHAKE256LayerReader.HashBits']);
 end;
 
 {===============================================================================
@@ -1513,31 +1541,8 @@ end;
 
 procedure TSHAKE256LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHAKE256Hash.Create;
-If Assigned(Params) then
-  If Params.Exists('TSHAKE256LayerWriter.HashBits',nvtInteger) then
-    TSHAKE256Hash(fHasher).HashBits := UInt32(Params.IntegerValue['TSHAKE256LayerWriter.HashBits']);
-end;
-
-{-------------------------------------------------------------------------------
-    TSHAKE256LayerWriter - public methods
--------------------------------------------------------------------------------}
-
-class Function TSHAKE256LayerWriter.LayerObjectParams: TLSLayerObjectParams;
-begin
-SetLength(Result,1);
-Result[0] := LayerObjectParam('TSHAKE256LayerWriter.HashBits',nvtInteger,[loprConstructor,loprInitializer]);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TSHAKE256LayerWriter.Init(Params: TSimpleNamedValues);
-begin
 inherited;
-If Assigned(Params) then
-  If Params.Exists('TSHAKE256LayerWriter.HashBits',nvtInteger) then
-    TSHAKE256Hash(fHasher).HashBits := UInt32(Params.IntegerValue['TSHAKE256LayerWriter.HashBits']);
 end;
 
 {===============================================================================
