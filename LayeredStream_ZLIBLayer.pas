@@ -119,11 +119,14 @@ type
   TZLIBCompressionLayerReader = class(TZLIBLayerReader)
   private
     Function GetCompressor: TZCompressor;
+    Function GetBufferedBytes: TMemSize;
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     property Compressor: TZCompressor read GetCompressor;
+    property BufferedBytes: TMemSize read GetBufferedBytes;
   end;
 
 {===============================================================================
@@ -160,6 +163,7 @@ type
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     property Decompressor: TZDecompressor read GetDecompressor;
   end;
@@ -179,6 +183,7 @@ type
   protected
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
+    class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     property Decompressor: TZDecompressor read GetDecompressor;
   end;
@@ -424,7 +429,7 @@ end;
 
 class Function TZLIBLayerReader.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lopNeedsInit,lopNeedsFinal,lopProcessor,lopConsumer,lopGenerator];
+Result := [lopNeedsInit,lopNeedsFinal,lopProcessor];
 end;
 
 //------------------------------------------------------------------------------
@@ -593,7 +598,7 @@ end;
 
 class Function TZLIBLayerWriter.LayerObjectProperties: TLSLayerObjectProperties;
 begin
-Result := [lopNeedsInit,lopNeedsFinal,lopProcessor,lopConsumer,lopGenerator];
+Result := [lopNeedsInit,lopNeedsFinal,lopProcessor];
 end;
 
 //------------------------------------------------------------------------------
@@ -667,6 +672,16 @@ begin
 Result := TZCompressor(fProcessor);
 end;
 
+//------------------------------------------------------------------------------
+
+Function TZLIBCompressionLayerReader.GetBufferedBytes: TMemSize;
+begin
+If not fProcessing then
+  Result := TMemSize(fUsed)
+else
+  Result := 0;
+end;
+
 {-------------------------------------------------------------------------------
     TZLIBCompressionLayerReader - protected methods
 -------------------------------------------------------------------------------}
@@ -692,6 +707,13 @@ end;
 {-------------------------------------------------------------------------------
     TZLIBCompressionLayerReader - public methods
 -------------------------------------------------------------------------------}
+
+class Function TZLIBCompressionLayerReader.LayerObjectProperties: TLSLayerObjectProperties;
+begin
+Result := inherited LayerObjectProperties + [lopPartialReads,lopUnusualOp];
+end;
+
+//------------------------------------------------------------------------------
 
 class Function TZLIBCompressionLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
@@ -788,6 +810,13 @@ end;
     TZLIBDecompressionLayerReader - public methods
 -------------------------------------------------------------------------------}
 
+class Function TZLIBDecompressionLayerReader.LayerObjectProperties: TLSLayerObjectProperties;
+begin
+Result := inherited LayerObjectProperties + [lopPartialReads];
+end;
+
+//------------------------------------------------------------------------------
+
 class Function TZLIBDecompressionLayerReader.LayerObjectParams: TLSLayerObjectParams;
 begin
 SetLength(Result,1);
@@ -830,6 +859,13 @@ end;
 {-------------------------------------------------------------------------------
     TZLIBDecompressionLayerWriter - public methods
 -------------------------------------------------------------------------------}
+
+class Function TZLIBDecompressionLayerWriter.LayerObjectProperties: TLSLayerObjectProperties;
+begin
+Result := inherited LayerObjectProperties + [lopPartialWrites];
+end;
+
+//------------------------------------------------------------------------------
 
 class Function TZLIBDecompressionLayerWriter.LayerObjectParams: TLSLayerObjectParams;
 begin

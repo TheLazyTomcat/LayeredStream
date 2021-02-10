@@ -49,26 +49,58 @@ interface
 
 uses
   Classes,
-  SimpleNamedValues,
+  AuxTypes, SimpleNamedValues,
   LayeredStream_Layers;
+
+{===============================================================================
+    Statistics types
+===============================================================================}
+type
+  TStatData = record
+    // seek stats
+    SeekCalls:          UInt64;
+    SeekOriginCounters: array[TSeekOrigin] of UInt32;
+    SeekOffsetZero:     UInt64;
+    SeekOffsetMax:      Int64;
+    SeekOffsetMin:      Int64;
+    case Integer of
+      // read stats
+      0: (ReadCalls:          UInt64;
+          ReadSizeZero:       UInt64;
+          ReadSizeMax:        LongInt;
+          ReadSizeMin:        LongInt;
+          ReadBytes:          UInt64;
+          PartialReads:       UInt64;
+          ZeroReads:          UInt64;
+          LargestReadDev:     LongInt;  // largest read deviation (size - result)
+          ReadByteCounters:   array[Byte] of UInt64);
+      // write stats
+      1: (WriteCalls:         UInt64;
+          WriteSizeZero:      UInt64;
+          WriteSizeMax:       LongInt;
+          WriteSizeMin:       LongInt;
+          WriteBytes:         UInt64;
+          PartialWrites:      UInt64;
+          ZeroWrites:         UInt64;
+          LargestWriteDev:    LongInt;
+          WriteByteCounters:  array[Byte] of UInt64);
+  end;
 
 {===============================================================================
 --------------------------------------------------------------------------------
                                 TStatLayerReader
 --------------------------------------------------------------------------------
 ===============================================================================}
-type
-  TStatsPerByte = array[Byte] of UInt64;
-
 {===============================================================================
     TStatLayerReader - class declaration
 ===============================================================================}
 type
   TStatLayerReader = class(TLSLayerReader)
   private
+    fStartTime:     TDateTIme;
+    fClearCounter:  UInt32;
     fFullStats:     Boolean;
-    fCounter:       UInt64;
-    fByteCounters:  TStatsPerByte;
+    fStatData:      TStatData;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
@@ -79,8 +111,10 @@ type
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); override;
     procedure Update(Params: TSimpleNamedValues); override;
-    property Counter: UInt64 read fCounter;
-    property ByteCounters: TStatsPerByte read fByteCounters;
+    property StartTime: TDateTime read fStartTime write fStartTime;
+    property ClearCounter: UInt32 read fClearCounter write fClearCounter;
+    property FullStats: Boolean read fFullStats write fFullStats;
+    property StatData: TStatData read fStatData;
   end;
 
 {===============================================================================
@@ -94,9 +128,10 @@ type
 type
   TStatLayerWriter = class(TLSLayerWriter)
   private
+    fStartTime:     TDateTIme;
+    fClearCounter:  UInt32;
     fFullStats:     Boolean;
-    fCounter:       UInt64;
-    fByteCounters:  TStatsPerByte;
+    fStatData:      TStatData;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
@@ -107,13 +142,16 @@ type
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); override;
     procedure Update(Params: TSimpleNamedValues); override;
-    property Counter: UInt64 read fCounter;
-    property ByteCounters: TStatsPerByte read fByteCounters;
+    property StartTime: TDateTime read fStartTime write fStartTime;
+    property ClearCounter: UInt32 read fClearCounter write fClearCounter;
+    property FullStats: Boolean read fFullStats write fFullStats;
+    property StatData: TStatData read fStatData;
   end;
 
 implementation
 
 uses
+  SysUtils,
   LayeredStream;
 
 {===============================================================================
@@ -130,6 +168,22 @@ uses
 
 Function TStatLayerReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
+Inc(fStatData.SeekCalls);
+Inc(fStatData.SeekOriginCounters[Origin]);
+If Offset = 0 then
+  Inc(fStatData.SeekOffsetZero);
+If fStatData.SeekCalls > 1 then
+  begin
+    If Offset > fStatData.SeekOffsetMax then
+      fStatData.SeekOffsetMax := Offset;
+    If Offset < fStatData.SeekOffsetMin then
+      fStatData.SeekOffsetMin := Offset;
+  end
+else
+  begin
+    fStatData.SeekOffsetMax := Offset;
+    fStatData.SeekOffsetMin := Offset;
+  end;
 Result := SeekOut(Offset,Origin);
 end;
 
@@ -140,15 +194,37 @@ var
   BuffPtr:  PByte;
   i:        Integer;
 begin
+// pre-call stats
+Inc(fStatData.ReadCalls);
+If Size = 0 then
+  Inc(fStatData.ReadSizeZero);
+If fStatData.ReadCalls > 1 then
+  begin
+    If Size > fStatData.ReadSizeMax then
+      fStatData.ReadSizeMax := Size;
+    If Size < fStatData.ReadSizeMin then
+      fStatData.ReadSizeMin := Size;
+  end
+else
+  begin
+    fStatData.ReadSizeMax := Size;
+    fStatData.ReadSizeMin := Size;
+  end;
 Result := ReadOut(Buffer,Size);
-// observe only the amount really read
-Inc(fCounter,Result);
+// post-call stats
+fStatData.ReadBytes := fStatData.ReadBytes + UInt64(Result);
+If Result <> Size then
+  Inc(fStatData.PartialReads);
+If Result = 0 then
+  Inc(fStatData.ZeroReads);
 If fFullStats then
   begin
+    If (Size - Result) > fStatData.LargestReadDev then
+      fStatData.LargestReadDev := Size - Result;
     BuffPtr := @Buffer;
     For i := 1 to Result do
       begin
-        Inc(fByteCounters[BuffPtr^]);
+        Inc(fStatData.ReadByteCounters[BuffPtr^]);
         Inc(BuffPtr);
       end;
   end;
@@ -159,17 +235,19 @@ end;
 procedure TStatLayerReader.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-ClearStats;
+fStartTime := Now;
+fClearCounter := 0;
 fFullStats := False;
 GetNamedValue(Params,'TStatLayerReader.FullStats',fFullStats);
+ClearStats;
 end;
 
 //------------------------------------------------------------------------------
 
 procedure TStatLayerReader.ClearStats;
 begin
-fCounter := 0;
-FillChar(fByteCounters,SizeOf(TStatsPerByte),0);
+Inc(fClearCounter);
+FillChar(fStatData,SizeOf(fStatData),0);
 end;
 
 {-------------------------------------------------------------------------------
@@ -228,6 +306,22 @@ end;
 
 Function TStatLayerWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
+Inc(fStatData.SeekCalls);
+Inc(fStatData.SeekOriginCounters[Origin]);
+If Offset = 0 then
+  Inc(fStatData.SeekOffsetZero);
+If fStatData.SeekCalls > 1 then
+  begin
+    If Offset > fStatData.SeekOffsetMax then
+      fStatData.SeekOffsetMax := Offset;
+    If Offset < fStatData.SeekOffsetMin then
+      fStatData.SeekOffsetMin := Offset;
+  end
+else
+  begin
+    fStatData.SeekOffsetMax := Offset;
+    fStatData.SeekOffsetMin := Offset;
+  end;
 Result := SeekOut(Offset,Origin);
 end;
 
@@ -238,15 +332,37 @@ var
   BuffPtr:  PByte;
   i:        Integer;
 begin
+// pre-call stats
+Inc(fStatData.WriteCalls);
+If Size = 0 then
+  Inc(fStatData.WriteSizeZero);
+If fStatData.WriteCalls > 1 then
+  begin
+    If Size > fStatData.WriteSizeMax then
+      fStatData.WriteSizeMax := Size;
+    If Size < fStatData.WriteSizeMin then
+      fStatData.WriteSizeMin := Size;
+  end
+else
+  begin
+    fStatData.WriteSizeMax := Size;
+    fStatData.WriteSizeMin := Size;
+  end;
 Result := WriteOut(Buffer,Size);
-// observe only the amount really written
-Inc(fCounter,Result);
+// post-call stats
+fStatData.WriteBytes := fStatData.WriteBytes + UInt64(Result);
+If Result <> Size then
+  Inc(fStatData.PartialWrites);
+If Result = 0 then
+  Inc(fStatData.ZeroWrites);
 If fFullStats then
   begin
+    If (Size - Result) > fStatData.LargestWriteDev then
+      fStatData.LargestWriteDev := Size - Result;
     BuffPtr := @Buffer;
     For i := 1 to Result do
       begin
-        Inc(fByteCounters[BuffPtr^]);
+        Inc(fStatData.WriteByteCounters[BuffPtr^]);
         Inc(BuffPtr);
       end;
   end;
@@ -257,17 +373,19 @@ end;
 procedure TStatLayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
-ClearStats;
+fStartTime := Now;
+fClearCounter := 0;
 fFullStats := False;
 GetNamedValue(Params,'TStatLayerWriter.FullStats',fFullStats);
+ClearStats;
 end;
 
 //------------------------------------------------------------------------------
 
 procedure TStatLayerWriter.ClearStats;
 begin
-fCounter := 0;
-FillChar(fByteCounters,SizeOf(TStatsPerByte),0);
+Inc(fClearCounter);
+FillChar(fStatData,SizeOf(fStatData),0);
 end;
 
 {-------------------------------------------------------------------------------

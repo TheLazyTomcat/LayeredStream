@@ -280,7 +280,9 @@ type
     procedure Init(Params: TLSLayerParams); overload; virtual;  // initilizes all layers
     procedure Init; overload; virtual;
     procedure Init(Index: Integer; Params: TLSLayerParams); overload; virtual;
+    procedure Init(Index: Integer); overload; virtual;
     procedure Init(const LayerName: String; Params: TLSLayerParams); overload; virtual;
+    procedure Init(const LayerName: String); overload; virtual;
     procedure InitReaders(ReaderParams: TSimpleNamedValues = nil); overload; virtual;
     procedure InitReaders(ReaderParams: ITransientSimpleNamedValues); overload; virtual;
     procedure InitReader(Index: Integer; ReaderParams: TSimpleNamedValues = nil); overload; virtual;
@@ -297,7 +299,9 @@ type
     procedure Update(Params: TLSLayerParams); overload; virtual;  // updates all layers
     procedure Update; overload; virtual;
     procedure Update(Index: Integer; Params: TLSLayerParams); overload; virtual;
+    procedure Update(Index: Integer); overload; virtual;
     procedure Update(const LayerName: String; Params: TLSLayerParams); overload; virtual;
+    procedure Update(const LayerName: String); overload; virtual;
     procedure UpdateReaders(ReaderParams: TSimpleNamedValues = nil); overload; virtual;
     procedure UpdateReaders(ReaderParams: ITransientSimpleNamedValues); overload; virtual;
     procedure UpdateReader(Index: Integer; ReaderParams: TSimpleNamedValues = nil); overload; virtual;
@@ -1125,6 +1129,13 @@ end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+procedure TLayeredStream.Init(Index: Integer);
+begin
+Init(Index,LayerParams(nil,nil));
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 procedure TLayeredStream.Init(const LayerName: String; Params: TLSLayerParams);
 var
   Index:  Integer;
@@ -1135,6 +1146,13 @@ If Find(LayerName,Index) then
     fLayers[Index].Writer.Init(Params.WriterParams);
   end
 else raise ELSInvalidLayer.CreateFmt('TLayeredStream.Init: Layer "%s" not found.',[LayerName]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Init(const LayerName: String);
+begin
+Init(LayerName,LayerParams(nil,nil));
 end;
 
 //------------------------------------------------------------------------------
@@ -1277,6 +1295,13 @@ end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+procedure TLayeredStream.Update(Index: Integer);
+begin
+Update(Index,LayerParams(nil,nil));
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
 procedure TLayeredStream.Update(const LayerName: String; Params: TLSLayerParams);
 var
   Index:  Integer;
@@ -1287,6 +1312,13 @@ If Find(LayerName,Index) then
     fLayers[Index].Writer.Update(Params.WriterParams);
   end
 else raise ELSInvalidLayer.CreateFmt('TLayeredStream.Update: Layer "%s" not found.',[LayerName]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Update(const LayerName: String);
+begin
+Update(LayerName,LayerParams(nil,nil));
 end;
 
 //------------------------------------------------------------------------------

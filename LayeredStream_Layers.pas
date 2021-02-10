@@ -44,6 +44,8 @@ type
   LayerObjectProperties) - what they do with data, how they operate or what
   they need for a proper function.
 
+    WARNING - new properties might be added in the future as needed.  
+
   Note that some of the properties exclude others. For example lopPassthrough
   and lopProcessor is a nonsensical combination, since lopPassthrough explicitly
   states the data are not changed, whereas lopProcessor tells the data are
@@ -51,66 +53,170 @@ type
   When such combination is returned by any object, it should be treated as an
   error.
 
-    WARNING - new properties might be added in the future as needed.
+  It might not be entirely clear what these properties mean, so let's clarify...
 
-  It might not be entirely clear what some properties mean, so here are some
-  small examples for clarification:
+    lopNeedsInit
 
-    lopStopper reader - 128 bytes are to be read, but the object stops the
-                        request and simply returns 0 without even attempting to
-                        pass the request to the next layer
+        The layer object needs a call to Init to start its intended function.
+        It should be able to accept data without it, but only in a modified
+        passthrough mode.
+        Typical example would be hash initialization, compression setup,
+        encryption setup and so on.
+        Calling Init on already initialized object should do nothing before it
+        is finalized. If the finalization is not needed, the re-initialization
+        is possible but should be carefully managed.
 
-                        0 is returned, no data are read
+    lopNeedsFlush
 
-    lopStopper writer - 128 bytes are being written, the object stops the
-                        requests and returns 0 with no attempt to pass any data
-                        to next layer
+        A call to Flush is needed for proper function of the layer. This is
+        usually because of some kind of buffering, where the flush will empty
+        the buffer.
+        Flush is usually needed to be called only when other layers needs all
+        the data and cannot work around buffering.
+        Typically, if the Flush is needed, it is also automatically done in a
+        call to Final (be it needed or not).
 
-                        0 is returned, no data are written
+    lopNeedsFinal
 
-    lopConsumer reader - 128 are to be read, the object passes request to read
-                         all 128 bytes, but upon return from next layer it
-                         consumes 28 bytes and returns only 100 bytes to
-                         previous layer
+        Layer object needs a call to Final to proper end its operation, eg.
+        to final calculation of hash or to provide footer for a compression
+        stream.
+        When an object is finalized, it should be still able to accept data in
+        a modified passthrough mode.
+        Calling final on finalized object should do nothing.
 
-                         only 100 bytes is indicated (passed through the layer),
-                         but in reality 128 bytes were read, of which 28 bytes
-                         were consumed
+    lopPartialReads
 
-    lopConsumer writer - 128 bytes are being written, the object accepts them,
-                         consumes 28 bytes, and passes only 100 bytes for write
-                         to next layer, but reports that all 128 bytes were
-                         written
+        A partial read (read where indicated read size is smaller than size of
+        read buffer) can occur during normal workings of the layer object.
+        Partial reads can normally occur at the end of stream, where no more
+        data can be read, but this quirk means the partial read can happen
+        anywhere.
+        Typically a partial read will end a reading cycle, so you have to
+        carefully check for this quirk and act accordingly.
 
-                         128 bytes is indicated, but in reality only 100 bytes
-                         were written (paased through the layer) and 28 bytes
-                         were consumed by the layer
+    lopPartialWrites
 
-    lopGenerator reader - 128 bytes are to be read, but the object passes
-                          request to read only 100 bytes to the next layer,
-                          upon return it adds (generates) new 28 bytes and adds
-                          them to the returned 100 and passes them all to
-                          previous layer
+        A partial write (write inidicating that not the entire passed buffer
+        was written) can occur during normal operation of the layer object.
+        Partial writes are extremely rare and in most cases never happen, maybe
+        within invariant-size or limited-size streams and similar cases.
+        If the object have this quirk and a partial write occurs, you should
+        carefully asses the situation, as there might be a need to write the
+        unwritten data again.
 
-                          128 bytes are returned, but only 100 bytes were read
-                          and 28 bytes were generated by the layer
+    lopUnusualOp
 
-    lopGenerator writer - 128 bytes are being written, the object passes only
-                          100 bytes to the next layer along with new 28 bytes
-                          it generates
+        The object acts in a strange or unusual way during reading, writing or
+        even seeking.
+        An example would be a buffered data after finalization, buffured data
+        before any IO is performed, or pretty much any other weirdness.
+        You should consult source or documentation for details.
 
-                          only 100 bytes is indicated to be written, but in
-                          reality 128 bytes were written (100 passed + 28
-                          generated)
+    lopAccumulator
+
+        During a read or write, the object creates a copy of passing data and
+        stores it in an internal buffer.
+        It says nothing about whether the data are altered, delayed, and so on.
+        An example would be one-shot hashing, where the entire message must be
+        known before a processing can take place.
+
+    lopDelayer
+
+        Passing data are delayed in the object, typically they are buffered.
+        It says nothing about whether the data are altered or not.
+
+    lopStopper
+
+        The object stops all requests for read, write or, depending on settings,
+        even seek. The requests and data are stopped at this layer and are not
+        passed to the next layer.
+        Reader, when asked to read some data, will, depending on settings,
+        return 0 ot the buffer size - in which case the buffer is filled with
+        zeroes.
+        Writer will, depending on settings, return 0 or buffer size. Data
+        passed in the buffer are completely ignored.
+
+    lopPassthrough
+
+        Data are passing through this object with no change.
+        This property does not tell anything about whether the data are delayed
+        or not, only that they are not changed.
+
+    lopObserver
+
+        The layer object is somehow processing the passing data without changing
+        them.
+        It does not indicate whether the data are delayed or even stopped.
+        Typical example is hashing object or creation of data statistics.
+
+    lopProcessor
+
+        Passing data are changed in some way. This property indicates some
+        deeper processing than just adding or subtracting part of the data.
+        Not only the atual data can be changed, their amount can change too.
+        It does not say anything about data delaying.
+        Examples would be (de)compression or encryption/decryption.
+
+    lopConsumer
+
+        At least part of the passing data, possibly all of them, are consumed
+        by this object.
+        Reader, when asked to read eg. 100 bytes, will request next layer to
+        read more (let's say 120 bytes), upon return it consumes those
+        additional 20 bytes and returns only the requested 100 bytes to a
+        previous layer.
+        When passing eg. 100 bytes to writer, it accepts them, consumes 15
+        bytes and passes only remaining 85 bytes to the next layer, while
+        indicating that all 100 bytes were written.
+
+    lopGenerator
+
+        The layer object will add (generate) new data to the stream.
+        Reader, when asked to read let's say 100 bytes, will pass a request to
+        read fewer bytes, eg. 80, to a next layer, and the missing 20 bytes are
+        genereted and added so that all 100 bytes are returned.
+        Writer, on the other end, when asked to write 100 bytes, takes them and
+        simply adds newly generated data (20 bytes for example) and passes
+        all 120 bytes to the next layer for writing, while indicating only the
+        initial 100 bytes to be written.
+
+    lopSplitter
+
+        The layer object copies part of the passing data into some kind of side
+        channel. It does not accumulate these copied data, they must be
+        consumed somehow (eg. through an event call).
+        An example would be some kind of listener that watches the stream, and
+        when wanted data are found, copies them out.
+
+    lopJoiner
+
+        The object adds some new data into the reads or writes from a side
+        channel. It differs from lopGenerator in the detail that the new data
+        are NOT generated within the object, they are added from an external
+        source.
+
+    lopCustom
+
+        Complete behavior cannot be known at compile time, usually because it
+        changes depending on object settings.
+
+    lopDebug
+
+        An extreme case where everything is possible. To see what is going on
+        in such an object, you must refer to implementation details or
+        documentation.
 }
-  {$message 'rework - reader should always try to read full request, partial/zero read is allowed only at the end of stream'}
-  {$message 'rework - writer should, if possible, write everything requested'}
   TLSLayerObjectProperty = (
     // object properties
     lopNeedsInit,     // layer object requires a call to Init for it to proper function
     lopNeedsFlush,    // layer object requires a call to Flush for it to proper function
     lopNeedsFinal,    // layer object requires a call to Final for it to proper function
-    // data passing
+    // behavioral quirks
+    lopPartialReads,  // layer can co a partial or zero reads even when not at the end of data
+    lopPartialWrites, // layer can potentially do a partial or zero write
+    lopUnusualOp,     // layer is operation unusually in some area, refer to source or documentation of that layer for details
+    // data flow
     lopAccumulator,   // a copy of at least part of the data is stored in the layer for later use
     lopDelayer,       // streaming of the data can be delayed (typically buffering)
     lopStopper,       // object stops any request for read, write or even a seek
@@ -124,7 +230,7 @@ type
     lopSplitter,      // at least part of the data is copied into a side channel
     lopJoiner,        // some data are added to the stream from a side channel
     // special
-    lopCustom,        // real properties depends on creation parameters
+    lopCustom,        // real properties depend on creation parameters
     lopDebug          // anything is possible, no strict rules, refer to source or documentation for details
   );
 
@@ -202,13 +308,16 @@ type
     - do not assume where the layer is located in relation to other layers
     - all layer objects must be created as active
     - always return valid information about all accepted parameters
+    - always append inherited parameters to current parameter list
     - expect methods init, update, flush and final to be called even when not
       needed, expect them to be called at any time, any number of times, in any
       order (when realy needed, wrong order is allowed produce an exception)
+    - be aware of the order in which methods init, update, flush and final are
+      called within the layer stack
     - properly override methods Initialize and Finalize (they are called from
       the constructor and destructor respectively) when needed
     - take care when overriding methods InternalInit and InternalFinal, be aware
-      when they are called
+      when they are called and how
     - be aware that seeking might go through the counterpart object and
       circumvent current instance
     - readers must always do everthing they can to read the full requested
