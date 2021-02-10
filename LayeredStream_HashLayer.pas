@@ -254,18 +254,24 @@ end;
 
 procedure THashLayerReader.Init(Params: TSimpleNamedValues);
 begin
-inherited;
-fHashing := True;
-fHasher.Init;
+If not fHashing then
+  begin
+    inherited;
+    fHashing := True;
+    fHasher.Init;
+  end;
 end;
 
 //------------------------------------------------------------------------------
 
 procedure THashLayerReader.Final;
 begin
-fHasher.Final;
-fHashing := False;
-inherited;
+If fHashing then
+  begin
+    fHasher.Final;
+    fHashing := False;
+    inherited;
+  end;
 end;
 
 {===============================================================================
@@ -324,18 +330,24 @@ end;
 
 procedure THashLayerWriter.Init(Params: TSimpleNamedValues);
 begin
-inherited;
-fHashing := True;
-fHasher.Init;
+If not fHashing then
+  begin
+    inherited;
+    fHashing := True;
+    fHasher.Init;
+  end;
 end;
 
 //------------------------------------------------------------------------------
 
 procedure THashLayerWriter.Final;
 begin
-fHasher.Final;
-fHashing := False;
-inherited;
+If fHashing then
+  begin
+    fHasher.Final;
+    fHashing := False;
+    inherited;
+  end;
 end;
 
 {===============================================================================

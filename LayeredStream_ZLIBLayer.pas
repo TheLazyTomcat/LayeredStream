@@ -50,6 +50,7 @@ Function ZLibStreamTypeFromInteger(Value: Integer): TZStreamType;
 type
   TZLIBLayerReader = class(TLSLayerReader)
   protected
+    fProcessing:    Boolean;
     fOutputBuffer:  TMemoryBuffer;
     fReadBuffer:    TMemoryBuffer;
     fUsed:          LongInt;
@@ -60,14 +61,14 @@ type
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
     procedure OutputHandler(Sender: TObject; const Buffer; Size: TMemSize); virtual;
-    procedure DiscardBuffered; virtual;
+    Function ReadBuffered(out Buffer; Size: LongInt): LongInt; virtual;
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); override;
     procedure Update(Params: TSimpleNamedValues); override;
-    procedure Flush; override;
     procedure Final; override;
+    property Processing: Boolean read fProcessing;
     property PropagateSeek: Boolean read fPropagateSeek write fPropagateSeek;
     property Processor: TZProcessor read fProcessor;
   end;
@@ -83,6 +84,7 @@ type
 type
   TZLIBLayerWriter = class(TLSLayerWriter)
   protected
+    fProcessing:    Boolean;
     fOutputBuffer:  TMemoryBuffer;
     fUsed:          LongInt;
     fPropagateSeek: Boolean;
@@ -100,6 +102,7 @@ type
     procedure Update(Params: TSimpleNamedValues); override;
     procedure Flush; override;
     procedure Final; override;
+    property Processing: Boolean read fProcessing;
     property PropagateSeek: Boolean read fPropagateSeek write fPropagateSeek;
     property Processor: TZProcessor read fProcessor;
   end;
@@ -294,49 +297,52 @@ var
   ReadBytes:      LongInt;
   ProcessedBytes: UInt32;
 begin
-{$message 'rework'}
-If Size > 0 then
+If fProcessing then
   begin
-    If fUsed < Size then
-      repeat
-        ReadBytes := ReadOut(BufferMemory(fReadBuffer)^,LongInt(BufferSize(fReadBuffer)));
-        ProcessedBytes := fProcessor.Update(BufferMemory(fReadBuffer)^,ReadBytes);
-        If Int64(ProcessedBytes) < Int64(ReadBytes) then
-          SeekOut(-(Int64(ReadBytes) - Int64(ProcessedBytes)),soCurrent);
-      until (ReadBytes < LongInt(BufferSize(fReadBuffer))) or (Int64(ProcessedBytes) < ReadBytes) or (fUsed >= Size);
-    // now process what is in the buffer (if anything)
-    If fUsed > 0 then
+    If Size > 0 then
       begin
-        If fUsed >= Size then
+        If fUsed < Size then
+          repeat
+            ReadBytes := ReadOut(BufferMemory(fReadBuffer)^,LongInt(BufferSize(fReadBuffer)));
+            ProcessedBytes := fProcessor.Update(BufferMemory(fReadBuffer)^,ReadBytes);
+            If Int64(ProcessedBytes) < Int64(ReadBytes) then
+              SeekOut(-(Int64(ReadBytes) - Int64(ProcessedBytes)),soCurrent);
+          until (ReadBytes < LongInt(BufferSize(fReadBuffer))) or (ProcessedBytes < UInt32(ReadBytes)) or (fUsed >= Size);
+        // now process what is in the buffer (if anything)
+        If fUsed > 0 then
           begin
-          {
-            All requested data are already in the buffer, copy them from there
-            and exit.
-          }
-            Move(BufferMemory(fOutputBuffer)^,Buffer,Size);
-            Result := Size;
-            If fUsed <> Size then
+            If fUsed >= Size then
               begin
-                // move remaining data down
-                Move(Pointer(PtrUInt(BufferMemory(fOutputBuffer)) + PtrUInt(Size))^,BufferMemory(fOutputBuffer)^,fUsed - Size);
-                fUsed := fUsed - Size;
+              {
+                All requested data are already in the buffer, copy them from there
+                and exit.
+              }
+                Move(BufferMemory(fOutputBuffer)^,Buffer,Size);
+                Result := Size;
+                If fUsed <> Size then
+                  begin
+                    // move remaining data down
+                    Move(BufferMemory(fOutputBuffer,TMemSize(Size))^,BufferMemory(fOutputBuffer)^,fUsed - Size);
+                    fUsed := fUsed - Size;
+                  end
+                else fUsed := 0;
               end
-            else fUsed := 0;
+            else
+              begin
+              {
+                Only part of the requested data is buffered, copy everything and
+                exit.
+              }
+                Move(BufferMemory(fOutputBuffer)^,Buffer,fUsed);
+                Result := fUsed;
+                fUsed := 0;
+              end;
           end
-        else
-          begin
-          {
-            Only part of the requested data is buffered, copy everything and
-            exit.
-          }
-            Move(BufferMemory(fOutputBuffer)^,Buffer,fUsed);
-            Result := fUsed;
-            fUsed := 0;
-          end;
+        else Result := 0;
       end
     else Result := 0;
   end
-else Result := 0;
+else Result := ReadBuffered(Buffer,Size);
 end;
 
 //------------------------------------------------------------------------------
@@ -381,17 +387,35 @@ If Size > 0 then
           BufferRealloc(fOutputBuffer,LS_READ_OUTPUTBUFFER_DELTA);
       end;
     // copy data to buffer
-    Move(Buffer,Pointer(PtrUInt(BufferMemory(fOutputBuffer)) + PtrUInt(fUsed))^,Size);
+    Move(Buffer,BufferMemory(fOutputBuffer,TMemSize(fUsed))^,Size);
     fUsed := fUsed + LongInt(Size);
   end;
 end;
 
 //------------------------------------------------------------------------------
 
-procedure TZLIBLayerReader.DiscardBuffered;
+Function TZLIBLayerReader.ReadBuffered(out Buffer; Size: LongInt): LongInt;
 begin
-//If fUsed <> 0 then
-//  raise EreadError.Create('TZLIBLayerReader.DiscardBuffered: Discarded non-empty buffer.');
+If fUsed >= 0 then
+  begin
+    // some data are still buffered...
+    If fUsed >= Size then
+      begin
+        // there is more or exactly the requested amount of data buffered
+        Move(BufferMemory(fOutputBuffer)^,Buffer,Size);
+        Move(BufferMemory(fOutputBuffer,TMemSize(fUsed))^,BufferMemory(fOutputBuffer)^,fUsed - Size);
+        fUsed := fUsed - Size;
+        Result := Size;
+      end
+    else
+      begin
+        // less than requested amount of data is buferred
+        Move(BufferMemory(fOutputBuffer)^,Buffer,fUsed);
+        Result := fUsed + ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,Size - fUsed);
+        fUsed := 0;
+      end;
+  end
+else Result := ReadOut(Buffer,Size);
 end;
 
 {-------------------------------------------------------------------------------
@@ -417,11 +441,15 @@ end;
 
 procedure TZLIBLayerReader.Init(Params: TSimpleNamedValues);
 begin
-inherited;
-fUsed := 0;
 GetNamedValue(Params,'TZLIBLayerReader.PropagateSeek',fPropagateSeek);
-fProcessor.OnOutput := OutputHandler;
-fProcessor.Init;
+If not fProcessing then
+  begin
+    inherited;
+    fUsed := 0;
+    fProcessing := True;
+    fProcessor.OnOutput := OutputHandler;
+    fProcessor.Init;
+  end;
 end;
 
 //------------------------------------------------------------------------------
@@ -434,20 +462,15 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TZLIBLayerReader.Flush;
-begin
-inherited;
-DiscardBuffered;
-end;
-
-//------------------------------------------------------------------------------
-
 procedure TZLIBLayerReader.Final;
 begin
-fProcessor.Final;
-fProcessor.OnOutput := nil;
-DiscardBuffered;
-inherited;
+If fProcessing then
+  begin
+    fProcessor.Final;
+    fProcessor.OnOutput := nil;
+    fProcessing := False;
+    inherited;
+  end;
 end;
 
 {===============================================================================
@@ -479,29 +502,35 @@ Function TZLIBLayerWriter.WriteActive(const Buffer; Size: LongInt): LongInt;
 var
   WrittenBytes: LongInt;
 begin
-If Size > 0 then
+If fProcessing then
   begin
-  {
-    compressor should always take everything, so result should be always equal
-    to size
-
-    decompressor, on the other hand, will only eat data until the end of
-    compression stream, so the result might be smaller than size or even zero
-  }
-    Result := LongInt(fProcessor.Update(Buffer,Size));
-    If result < size then
-      writeln('it happened');
-    If fUsed <> 0 then
+    If Size > 0 then
       begin
-        WrittenBytes := WriteOut(BufferMemory(fOutputBuffer)^,fUsed);
-        If WrittenBytes < fUsed then
-          // not all buffered data were written
-          Move(Pointer(PtrUInt(BufferMemory(fOutputBuffer)) + PtrUInt(WrittenBytes))^,
-               BufferMemory(fOutputBuffer)^,fUsed - WrittenBytes);
-        fUsed := fUsed - WrittenBytes;
-      end;
+      {
+        compressor should always take everything, so result should be always
+        equal to size
+
+        decompressor, on the other hand, will only eat data until the end of
+        compression stream, so the result might be smaller than size or even
+        zero
+      }
+        Result := LongInt(fProcessor.Update(Buffer,Size));
+        If fUsed <> 0 then
+          begin
+            WrittenBytes := WriteOut(BufferMemory(fOutputBuffer)^,fUsed);
+            If WrittenBytes < fUsed then
+              // not all buffered data were written
+              Move(BufferMemory(fOutputBuffer,TMemSize(WrittenBytes))^,BufferMemory(fOutputBuffer)^,fUsed - WrittenBytes);
+            fUsed := fUsed - WrittenBytes;
+          end;
+      end
+    else Result := 0;
   end
-else Result := 0;
+else
+  begin
+    WriteBuffered;
+    Result := WriteOut(Buffer,Size);
+  end;
 end;
 
 //------------------------------------------------------------------------------
@@ -509,6 +538,7 @@ end;
 procedure TZLIBLayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
 inherited;
+fProcessing := False;
 BufferInit(fOutputBuffer);
 fUsed := 0;
 fPropagateSeek := True;
@@ -539,7 +569,7 @@ If Size > 0 then
           BufferRealloc(fOutputBuffer,LS_WRITE_OUTPUTBUFFER_DELTA);
       end;
     // copy data to buffer
-    Move(Buffer,Pointer(PtrUInt(BufferMemory(fOutputBuffer)) + PtrUInt(fUsed))^,Size);
+    Move(Buffer,BufferMemory(fOutputBuffer,TMemSize(fUsed))^,Size);
     fUsed := fUsed + LongInt(Size);
   end;
 end;
@@ -579,11 +609,15 @@ end;
 
 procedure TZLIBLayerWriter.Init(Params: TSimpleNamedValues);
 begin
-inherited;
-fUsed := 0;
 GetNamedValue(Params,'TZLIBLayerWriter.PropagateSeek',fPropagateSeek);
-fProcessor.OnOutput := OutputHandler;
-fProcessor.Init;
+If not fProcessing then
+  begin
+    inherited;
+    fUsed := 0;
+    fProcessing := True;
+    fProcessor.OnOutput := OutputHandler;
+    fProcessor.Init;
+  end;
 end;
 
 //------------------------------------------------------------------------------
@@ -606,10 +640,14 @@ end;
 
 procedure TZLIBLayerWriter.Final;
 begin
-fProcessor.Final;
-fProcessor.OnOutput := nil;
-WriteBuffered;
-inherited;
+If fProcessing then
+  begin
+    fProcessor.Final;
+    fProcessor.OnOutput := nil;
+    fProcessing := False;
+    WriteBuffered;
+    inherited;
+  end;
 end;
 
 {===============================================================================
@@ -799,5 +837,17 @@ SetLength(Result,1);
 Result[0] := LayerObjectParam('TZLIBDecompressionLayerWriter.StreamType',nvtInteger,[loprConstructor]);
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
+
+{===============================================================================
+    Layer registration
+===============================================================================}
+
+initialization
+  RegisterLayer('LSRL_ZLIBCompress',TZLIBCompressionLayerReader,TZLIBCompressionLayerWriter);
+  RegisterLayer('LSRL_ZLIBDecompress',TZLIBDecompressionLayerReader,TZLIBDecompressionLayerWriter);
+  RegisterLayer('LSRL_ZLIBCompressToStream',TZLIBDecompressionLayerReader,TZLIBCompressionLayerWriter);
+  RegisterLayer('LSRL_ZLIBCompressFromStream',TZLIBCompressionLayerReader,TZLIBDecompressionLayerWriter);
+  RegisterLayer('LSRL_ZLIBDecompressFromStream',TZLIBDecompressionLayerReader,TZLIBCompressionLayerWriter);
+  RegisterLayer('LSRL_ZLIBDecompressToStream',TZLIBCompressionLayerReader,TZLIBDecompressionLayerWriter);
 
 end.
