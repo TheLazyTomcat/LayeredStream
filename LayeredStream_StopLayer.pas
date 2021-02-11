@@ -116,6 +116,11 @@ implementation
 uses
   LayeredStream;
 
+{$IFDEF FPC_DisableWarns}
+  {$DEFINE FPCDWM}
+  {$DEFINE W5058:={$WARN 5058 OFF}} // Variable "$1" does not seem to be initialized
+{$ENDIF}
+
 {===============================================================================
 --------------------------------------------------------------------------------
                                 TStopLayerReader
@@ -142,6 +147,7 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5058{$ENDIF}
 Function TStopLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 begin
 If fSilentStop then
@@ -159,6 +165,7 @@ If fSilentStop then
   end
 else raise TLSLayerStopException.CreateFmt('TStopLayerReader.ReadActive: Stopped read (%p,%d).',[@Buffer,Size]);
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 

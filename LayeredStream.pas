@@ -9,7 +9,7 @@
 
   Layered Stream
 
-    WARNING - current implementation requires extensive testing.
+    NOTE - current implementation requires extensive testing.
 
     Layered stream (TLayeredStream class) is a descendant of TStream class that
     is intended for situations, where there is a need for some (possibly
@@ -21,18 +21,21 @@
 
     The processing is done in one or more layers, where each layer is a pair
     of objects - one object for reading and one for writing.
-    The layered stream holds an array of layers and when a request for read,
+    The layered stream holds an array of layers and, when a request for read,
     write or seek is executed, it is passed to the last layer (top-most). This
     layer processes the request and data (possibly changing them) and passses
     them to the next (lower) layer for further processing. Bottom-most layer,
-    after processing, then passes the request back to layered stream and it will
-    in turn execute it on the target.
+    after processing, then passes the request back to layered stream and it
+    will in turn execute it on the target.
 
-  Version 1.0 alpha (2020-11-03)
+    Several layers are already implemented and distributed with LayeredStream.
+    For a complete list, use funtion EnumRegisteredLayers.
 
-  Last change 2020-11-03
+  Version 1.0 beta (2021-02-11)
 
-  ©2020 František Milt
+  Last change 2021-02-11
+
+  ©2020-2021 František Milt
 
   Contacts:
     František Milt: frantisek.milt@gmail.com
@@ -52,6 +55,28 @@
     AuxTypes          - github.com/TheLazyTomcat/Lib.AuxTypes
     AuxClasses        - github.com/TheLazyTomcat/Lib.AuxClasses
     SimpleNamedValues - github.com/TheLazyTomcat/Lib.SimpleNamedValues
+
+  Dependencies required by implemented layers:
+    Adler32            - github.com/TheLazyTomcat/Lib.Adler32
+    CRC32              - github.com/TheLazyTomcat/Lib.CRC32
+    MD2                - github.com/TheLazyTomcat/Lib.MD2
+    MD4                - github.com/TheLazyTomcat/Lib.MD4
+    MD5                - github.com/TheLazyTomcat/Lib.MD5
+    SHA0               - github.com/TheLazyTomcat/Lib.SHA0
+    SHA1               - github.com/TheLazyTomcat/Lib.SHA1
+    SHA2               - github.com/TheLazyTomcat/Lib.SHA2
+    SHA3               - github.com/TheLazyTomcat/Lib.SHA3
+    HashBase           - github.com/TheLazyTomcat/Lib.HashBase
+    StrRect            - github.com/TheLazyTomcat/Lib.StrRect
+    BitOps             - github.com/TheLazyTomcat/Lib.BitOps
+    StaticMemoryStream - github.com/TheLazyTomcat/Lib.StaticMemoryStream
+  * SimpleCPUID        - github.com/TheLazyTomcat/Lib.SimpleCPUID
+    ZLibUtils          - github.com/TheLazyTomcat/Lib.ZLibUtils
+    MemoryBuffer       - github.com/TheLazyTomcat/Lib.MemoryBuffer
+    DynLibUtils        - github.com/TheLazyTomcat/Lib.DynLibUtils
+    ZLib               - github.com/TheLazyTomcat/Bnd.ZLib
+
+  SimpleCPUID might not be needed, see BitOps and CRC32 libraries for details.
 
 ===============================================================================}
 unit LayeredStream;
@@ -360,22 +385,56 @@ type
 {===============================================================================
     TLSRegisteredLayers - public interface
 ===============================================================================}
+{
+  Adds new layer to a list of registered layers.
 
+  If a layer with the same ID is already registered, it will raise an
+  ELSDuplicitLayer exception.
+
+  Resturns true when the registration went successfully, false otherwise.
+}
 Function RegisterLayer(const ID: String; LayerReaderClass: TLSLayerReaderClass; LayerWriterClass: TLSLayerWriterClass): Boolean;
 
+{
+  Returns reader class of a requested registered layer.
+
+  If the requested layer is not found, it will raise an ELSInvalidLayer
+  exception.
+}
 Function GetRegisteredLayerReader(const ID: String): TLSLayerReaderClass;
+
+{
+  Returns writer class of a requested registered layer.
+
+  If the requested layer is not found, it will raise an ELSInvalidLayer
+  exception.
+}
 Function GetRegisteredLayerWriter(const ID: String): TLSLayerWriterClass;
+
+{
+  Fills output parameteres with reader and writer class of the requested
+  registered layer.
+
+  Returns true when the layer is found and the output params are filled.
+  Returns false when the layer is not found, in which case the value of both
+  output parameteres is undefined.
+}
 Function GetRegisteredLayer(const ID: String; out LayerReaderClass: TLSLayerReaderClass; out LayerWriterClass: TLSLayerWriterClass): Boolean;
 
+// registered layers enumeration
 type
   TLSRegisteredLayer = record
     ID:               String;
     LayerReaderClass: TLSLayerReaderClass;
     LayerWriterClass: TLSLayerWriterClass;
   end;
-  
+
   TLSRegisteredLayersEnumFunc = Function(const RegLayer: TLSRegisteredLayer): Boolean;
 
+{
+  Calls given callback function for each registered layer, passing info about
+  this layer to the callback.
+}
 procedure EnumRegisteredLayers(EnumFunc: TLSRegisteredLayersEnumFunc);
 
 implementation
@@ -402,6 +461,7 @@ uses
   LayeredStream_SHA1Layer,
   LayeredStream_SHA2Layer,
   LayeredStream_SHA3Layer,
+  // compression layers
   LayeredStream_ZLIBLayer;
 
 {$IFDEF FPC_DisableWarns}
@@ -1131,7 +1191,7 @@ end;
 
 procedure TLayeredStream.Init(Index: Integer);
 begin
-Init(Index,LayerParams(nil,nil));
+Init(Index,LayerParams(TSimpleNamedValues(nil),TSimpleNamedValues(nil)));
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1152,7 +1212,7 @@ end;
 
 procedure TLayeredStream.Init(const LayerName: String);
 begin
-Init(LayerName,LayerParams(nil,nil));
+Init(LayerName,LayerParams(TSimpleNamedValues(nil),TSimpleNamedValues(nil)));
 end;
 
 //------------------------------------------------------------------------------
@@ -1297,7 +1357,7 @@ end;
 
 procedure TLayeredStream.Update(Index: Integer);
 begin
-Update(Index,LayerParams(nil,nil));
+Update(Index,LayerParams(TSimpleNamedValues(nil),TSimpleNamedValues(nil)));
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -1318,7 +1378,7 @@ end;
 
 procedure TLayeredStream.Update(const LayerName: String);
 begin
-Update(LayerName,LayerParams(nil,nil));
+Update(LayerName,LayerParams(TSimpleNamedValues(nil),TSimpleNamedValues(nil)));
 end;
 
 //------------------------------------------------------------------------------

@@ -1,3 +1,64 @@
+{-------------------------------------------------------------------------------
+
+  This Source Code Form is subject to the terms of the Mozilla Public
+  License, v. 2.0. If a copy of the MPL was not distributed with this
+  file, You can obtain one at http://mozilla.org/MPL/2.0/.
+
+-------------------------------------------------------------------------------}
+{===============================================================================
+
+  Layered Stream - ZLIB Layer
+
+  
+
+  Version 1.0 beta (2021-02-11)
+
+  Last change 2021-02-11
+
+  ©2020-2021 František Milt
+
+  Contacts:
+    František Milt: frantisek.milt@gmail.com
+
+  Support:
+    If you find this code useful, please consider supporting its author(s) by
+    making a small donation using the following link(s):
+
+      https://www.paypal.me/FMilt
+
+  Changelog:
+    For detailed changelog and history please refer to this git repository:
+
+      github.com/TheLazyTomcat/LayeredStream
+
+  Dependencies:
+    AuxTypes          - github.com/TheLazyTomcat/Lib.AuxTypes
+    AuxClasses        - github.com/TheLazyTomcat/Lib.AuxClasses
+    SimpleNamedValues - github.com/TheLazyTomcat/Lib.SimpleNamedValues
+
+  Dependencies required by implemented layers:
+    Adler32            - github.com/TheLazyTomcat/Lib.Adler32
+    CRC32              - github.com/TheLazyTomcat/Lib.CRC32
+    MD2                - github.com/TheLazyTomcat/Lib.MD2
+    MD4                - github.com/TheLazyTomcat/Lib.MD4
+    MD5                - github.com/TheLazyTomcat/Lib.MD5
+    SHA0               - github.com/TheLazyTomcat/Lib.SHA0
+    SHA1               - github.com/TheLazyTomcat/Lib.SHA1
+    SHA2               - github.com/TheLazyTomcat/Lib.SHA2
+    SHA3               - github.com/TheLazyTomcat/Lib.SHA3
+    HashBase           - github.com/TheLazyTomcat/Lib.HashBase
+    StrRect            - github.com/TheLazyTomcat/Lib.StrRect
+    BitOps             - github.com/TheLazyTomcat/Lib.BitOps
+    StaticMemoryStream - github.com/TheLazyTomcat/Lib.StaticMemoryStream
+  * SimpleCPUID        - github.com/TheLazyTomcat/Lib.SimpleCPUID
+    ZLibUtils          - github.com/TheLazyTomcat/Lib.ZLibUtils
+    MemoryBuffer       - github.com/TheLazyTomcat/Lib.MemoryBuffer
+    DynLibUtils        - github.com/TheLazyTomcat/Lib.DynLibUtils
+    ZLib               - github.com/TheLazyTomcat/Bnd.ZLib
+
+  SimpleCPUID might not be needed, see BitOps and CRC32 libraries for details.
+
+===============================================================================}
 unit LayeredStream_ZLIBLayer;
 
 {$INCLUDE './LayeredStream_defs.inc'}
@@ -193,6 +254,13 @@ implementation
 uses
   LayeredStream;
 
+{$IFDEF FPC_DisableWarns}
+  {$DEFINE FPCDWM}
+  {$DEFINE W4055:={$WARN 4055 OFF}} // Conversion between ordinals and pointers is not portable}
+  {$DEFINE W5024:={$WARN 5024 OFF}} // Parameter "$1" not used
+  {$DEFINE W5058:={$WARN 5058 OFF}} // Variable "$1" does not seem to be initialized
+{$ENDIF}
+
 {===============================================================================
     Values and helpers for parameters passing
 ===============================================================================}
@@ -297,6 +365,7 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5058{$ENDIF}
 Function TZLIBLayerReader.ReadActive(out Buffer; Size: LongInt): LongInt;
 var
   ReadBytes:      LongInt;
@@ -349,6 +418,7 @@ If fProcessing then
   end
 else Result := ReadBuffered(Buffer,Size);
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
@@ -379,6 +449,7 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TZLIBLayerReader.OutputHandler(Sender: TObject; const Buffer; Size: TMemSize);
 begin
 If Size > 0 then
@@ -396,9 +467,11 @@ If Size > 0 then
     fUsed := fUsed + LongInt(Size);
   end;
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5058{$ENDIF}
 Function TZLIBLayerReader.ReadBuffered(out Buffer; Size: LongInt): LongInt;
 begin
 If fUsed >= 0 then
@@ -416,12 +489,15 @@ If fUsed >= 0 then
       begin
         // less than requested amount of data is buferred
         Move(BufferMemory(fOutputBuffer)^,Buffer,fUsed);
+      {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
         Result := fUsed + ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(fUsed))^,Size - fUsed);
+      {$IFDEF FPCDWM}{$POP}{$ENDIF}
         fUsed := 0;
       end;
   end
 else Result := ReadOut(Buffer,Size);
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 {-------------------------------------------------------------------------------
     TZLIBLayerReader - public methods
@@ -561,6 +637,7 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TZLIBLayerWriter.OutputHandler(Sender: TObject; const Buffer; Size: TMemSize);
 begin
 If Size > 0 then
@@ -578,6 +655,7 @@ If Size > 0 then
     fUsed := fUsed + LongInt(Size);
   end;
 end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 //------------------------------------------------------------------------------
 
@@ -693,6 +771,7 @@ var
   StreamType: TZStreamType;
 begin
 inherited;
+Temp := 0;
 If GetNamedValue(Params,'TZLIBCompressionLayerReader.CompressionLevel',Temp) then
   CompLevel := ZLibCompLevelFromInteger(Temp)
 else
@@ -751,6 +830,7 @@ var
   StreamType: TZStreamType;
 begin
 inherited;
+Temp := 0;
 If GetNamedValue(Params,'TZLIBCompressionLayerWriter.CompressionLevel',Temp) then
   CompLevel := ZLibCompLevelFromInteger(Temp)
 else
@@ -800,6 +880,7 @@ var
   StreamType: Integer;
 begin
 inherited;
+StreamType := 0;
 If GetNamedValue(Params,'TZLIBDecompressionLayerReader.StreamType',StreamType) then
   fProcessor := TZDecompressor.Create(ZLibStreamTypeFromInteger(StreamType))
 else
@@ -850,6 +931,7 @@ var
   StreamType: Integer;
 begin
 inherited;
+StreamType := 0;
 If GetNamedValue(Params,'TZLIBDecompressionLayerWriter.StreamType',StreamType) then
   fProcessor := TZDecompressor.Create(ZLibStreamTypeFromInteger(StreamType))
 else

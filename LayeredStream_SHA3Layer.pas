@@ -1223,6 +1223,7 @@ var
   Temp: Integer;
 begin
 inherited;
+Temp := 0;
 If GetNamedValue(Params,'TKeccakVarLenLayerReader.HashBits',Temp) then
   TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
 end;
@@ -1245,6 +1246,7 @@ var
   Temp: Integer;
 begin
 inherited;
+Temp := 0;
 If GetNamedValue(Params,'TKeccakVarLenLayerReader.HashBits',Temp) then
   TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
 end;
@@ -1263,6 +1265,7 @@ var
   Temp: Integer;
 begin
 inherited;
+Temp := 0;
 If GetNamedValue(Params,'TKeccakVarLenLayerWriter.HashBits',Temp) then
   TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
 end;
@@ -1285,6 +1288,7 @@ var
   Temp: Integer;
 begin
 inherited;
+Temp := 0;
 If GetNamedValue(Params,'TKeccakVarLenLayerWriter.HashBits',Temp) Then
   TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
 end;
@@ -1323,6 +1327,7 @@ var
 begin
 fHasher := TKeccakCHash.Create;
 inherited;  // hasher is accessed here
+Temp := 0;
 If GetNamedValue(Params,'TKeccakCLayerReader.Capacity',Temp) then
   TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
@@ -1345,6 +1350,7 @@ var
   Temp: Integer;
 begin
 inherited;
+Temp := 0;
 If GetNamedValue(Params,'TKeccakCLayerReader.Capacity',Temp) then
   TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
@@ -1383,6 +1389,7 @@ var
 begin
 fHasher := TKeccakCHash.Create;
 inherited;  // hasher is accessed here
+Temp := 0;
 If GetNamedValue(Params,'TKeccakCLayerWriter.Capacity',Temp) then
   TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
@@ -1405,6 +1412,7 @@ var
   Temp: Integer;
 begin
 inherited;
+Temp := 0;
 If GetNamedValue(Params,'TKeccakCLayerWriter.Capacity',Temp) then
   TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;

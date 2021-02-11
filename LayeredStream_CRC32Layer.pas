@@ -125,6 +125,9 @@ var
   StrTemp:  String;
   BoolTemp: Boolean;
 begin
+IntTemp := 0;
+StrTemp := '';
+BoolTemp := False;
 If GetNamedValue(Params,Prefix + '.Class',IntTemp) then
   case IntTemp of
     CRC32_CLASS_PKZIP:
