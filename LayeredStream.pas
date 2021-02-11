@@ -31,9 +31,9 @@
     Several layers are already implemented and distributed with LayeredStream.
     For a complete list, use funtion EnumRegisteredLayers.
 
-  Version 1.0 beta (2021-02-11)
+  Version 1.0 beta (2021-02-12)
 
-  Last change 2021-02-11
+  Last change 2021-02-12
 
   ©2020-2021 František Milt
 

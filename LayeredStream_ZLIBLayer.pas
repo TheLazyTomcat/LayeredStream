@@ -9,11 +9,21 @@
 
   Layered Stream - ZLIB Layer
 
-  
+    Compression and decompression layer objects both for reading and writing,
+    powered by ZLib compression library.
 
-  Version 1.0 beta (2021-02-11)
+    NOTE - decompression reader can produce partial reads
 
-  Last change 2021-02-11
+    NOTE - decompression writer can produce partial writes (when writing data
+           beyond the end of compressed stream)
+
+    WARNING - compression reader can produce partial reads and will contain
+              buffered data after a call to Final (amount of buffered data
+              can be obtained from a property BufferedBytes)
+
+  Version 1.0 beta (2021-02-12)
+
+  Last change 2021-02-12
 
   ©2020-2021 František Milt
 

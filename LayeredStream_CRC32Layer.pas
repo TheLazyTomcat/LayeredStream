@@ -7,18 +7,18 @@
 -------------------------------------------------------------------------------}
 {===============================================================================
 
-  Layered Stream - CRC32 Layer
+  Layered Stream - CRC32 layer
 
     Calculates CRC32 checksum of read or written data.
 
     Several CRC32 variants are provided and can be selected to produce a
     desired checksum. It is also possible to configure custom CRC32 algorithm.
 
-  Version 1.0 (2020-11-03)
+  Version 1.0 beta (2021-02-12)
 
-  Last change 2020-11-03
+  Last change 2021-02-12
 
-  ©2020 František Milt
+  ©2020-2021 František Milt
 
   Contacts:
     František Milt: frantisek.milt@gmail.com
@@ -32,20 +32,34 @@
   Changelog:
     For detailed changelog and history please refer to this git repository:
 
-      github.com/TheLazyTomcat/Lib.LayeredStream
+      github.com/TheLazyTomcat/LayeredStream
 
   Dependencies:
-    AuxTypes           - github.com/TheLazyTomcat/Lib.AuxTypes
-    AuxClasses         - github.com/TheLazyTomcat/Lib.AuxClasses
-    SimpleNamedValues  - github.com/TheLazyTomcat/Lib.SimpleNamedValues
-    LayeredStream      - github.com/TheLazyTomcat/Lib.LayeredStream
+    AuxTypes          - github.com/TheLazyTomcat/Lib.AuxTypes
+    AuxClasses        - github.com/TheLazyTomcat/Lib.AuxClasses
+    SimpleNamedValues - github.com/TheLazyTomcat/Lib.SimpleNamedValues
+
+  Dependencies required by implemented layers:
+    Adler32            - github.com/TheLazyTomcat/Lib.Adler32
     CRC32              - github.com/TheLazyTomcat/Lib.CRC32
+    MD2                - github.com/TheLazyTomcat/Lib.MD2
+    MD4                - github.com/TheLazyTomcat/Lib.MD4
+    MD5                - github.com/TheLazyTomcat/Lib.MD5
+    SHA0               - github.com/TheLazyTomcat/Lib.SHA0
+    SHA1               - github.com/TheLazyTomcat/Lib.SHA1
+    SHA2               - github.com/TheLazyTomcat/Lib.SHA2
+    SHA3               - github.com/TheLazyTomcat/Lib.SHA3
     HashBase           - github.com/TheLazyTomcat/Lib.HashBase
     StrRect            - github.com/TheLazyTomcat/Lib.StrRect
+    BitOps             - github.com/TheLazyTomcat/Lib.BitOps
     StaticMemoryStream - github.com/TheLazyTomcat/Lib.StaticMemoryStream
   * SimpleCPUID        - github.com/TheLazyTomcat/Lib.SimpleCPUID
+    ZLibUtils          - github.com/TheLazyTomcat/Lib.ZLibUtils
+    MemoryBuffer       - github.com/TheLazyTomcat/Lib.MemoryBuffer
+    DynLibUtils        - github.com/TheLazyTomcat/Lib.DynLibUtils
+    ZLib               - github.com/TheLazyTomcat/Bnd.ZLib
 
-    SimpleCPUID might not be needed, refer to CRC32 library for details.
+  SimpleCPUID might not be needed, see BitOps and CRC32 libraries for details.
 
 ===============================================================================}
 unit LayeredStream_CRC32Layer;

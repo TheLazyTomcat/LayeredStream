@@ -7,18 +7,18 @@
 -------------------------------------------------------------------------------}
 {===============================================================================
 
-  Layered Stream - Buffer Layer
+  Layered Stream - Buffer layer
 
     Buffers read or written data.
 
     Can be used eg. for buffering when reading/writing large number of small
     data blocks to/from a file.
 
-  Version 1.0 (2020-11-03)
+  Version 1.0 beta (2021-02-12)
 
-  Last change 2020-11-03
+  Last change 2021-02-12
 
-  ©2020 František Milt
+  ©2020-2021 František Milt
 
   Contacts:
     František Milt: frantisek.milt@gmail.com
@@ -32,13 +32,34 @@
   Changelog:
     For detailed changelog and history please refer to this git repository:
 
-      github.com/TheLazyTomcat/Lib.LayeredStream
+      github.com/TheLazyTomcat/LayeredStream
 
   Dependencies:
     AuxTypes          - github.com/TheLazyTomcat/Lib.AuxTypes
     AuxClasses        - github.com/TheLazyTomcat/Lib.AuxClasses
     SimpleNamedValues - github.com/TheLazyTomcat/Lib.SimpleNamedValues
-    LayeredStream     - github.com/TheLazyTomcat/Lib.LayeredStream
+
+  Dependencies required by implemented layers:
+    Adler32            - github.com/TheLazyTomcat/Lib.Adler32
+    CRC32              - github.com/TheLazyTomcat/Lib.CRC32
+    MD2                - github.com/TheLazyTomcat/Lib.MD2
+    MD4                - github.com/TheLazyTomcat/Lib.MD4
+    MD5                - github.com/TheLazyTomcat/Lib.MD5
+    SHA0               - github.com/TheLazyTomcat/Lib.SHA0
+    SHA1               - github.com/TheLazyTomcat/Lib.SHA1
+    SHA2               - github.com/TheLazyTomcat/Lib.SHA2
+    SHA3               - github.com/TheLazyTomcat/Lib.SHA3
+    HashBase           - github.com/TheLazyTomcat/Lib.HashBase
+    StrRect            - github.com/TheLazyTomcat/Lib.StrRect
+    BitOps             - github.com/TheLazyTomcat/Lib.BitOps
+    StaticMemoryStream - github.com/TheLazyTomcat/Lib.StaticMemoryStream
+  * SimpleCPUID        - github.com/TheLazyTomcat/Lib.SimpleCPUID
+    ZLibUtils          - github.com/TheLazyTomcat/Lib.ZLibUtils
+    MemoryBuffer       - github.com/TheLazyTomcat/Lib.MemoryBuffer
+    DynLibUtils        - github.com/TheLazyTomcat/Lib.DynLibUtils
+    ZLib               - github.com/TheLazyTomcat/Bnd.ZLib
+
+  SimpleCPUID might not be needed, see BitOps and CRC32 libraries for details.
 
 ===============================================================================}
 unit LayeredStream_BufferLayer;

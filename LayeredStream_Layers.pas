@@ -12,9 +12,9 @@
     This unit provides parent classes for all layers along with some utility
     functions that can be used to simplify implementation of new layers.
 
-  Version 1.0 beta (2021-02-11)
+  Version 1.0 beta (2021-02-12)
 
-  Last change 2021-02-11
+  Last change 2021-02-12
 
   ©2020-2021 František Milt
 
@@ -368,7 +368,9 @@ type
       TLSLayerReader or TLSLayerReader
     - do not assume anything about counterpart object
     - do not assume where the layer is located in relation to other layers
-    - all layer objects must be created as active
+    - all layer objects must be created as active, but not initialized (meaning
+      initialization through a call to Init) - it is technically possible to
+      initialize the object at creation, but strongly discouraged
     - always return valid information about all accepted parameters
     - always append inherited parameters to current parameter list
     - expect methods init, update, flush and final to be called even when not
