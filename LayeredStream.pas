@@ -157,6 +157,7 @@ type
     WriterClass:  TLSLayerWriterClass;
     ReaderParams: TSimpleNamedValues;
     WriterParams: TSimpleNamedValues;
+    Reserved:     ITransientSimpleNamedValues;
   end;
 
 Function LayerConstruct(const Name: String;
@@ -235,6 +236,7 @@ type
   TLSLayerParams = record
     ReaderParams: TSimpleNamedValues;
     WriterParams: TSimpleNamedValues;
+    Reserved:     ITransientSimpleNamedValues;
   end;
 
 Function LayerParams(ReaderParams, WriterParams: TSimpleNamedValues): TLSLayerParams; overload;
@@ -488,6 +490,7 @@ Result.ReaderClass := ReaderClass;
 Result.WriterClass := WriterClass;
 Result.ReaderParams := ReaderParams;
 Result.WriterParams := WriterParams;
+Result.Reserved := nil;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -497,6 +500,7 @@ Function LayerConstruct(const Name: String;
   ReaderParams, WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct;
 begin
 Result := LayerConstruct(Name,ReaderClass,WriterClass,ReaderParams.Implementor,WriterParams.Implementor);
+Result.Reserved := ReaderParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -506,6 +510,7 @@ Function LayerConstruct(const Name: String;
   ReaderParams: TSimpleNamedValues; WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct;
 begin
 Result := LayerConstruct(Name,ReaderClass,WriterClass,ReaderParams,WriterParams.Implementor);
+Result.Reserved := WriterParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -515,6 +520,7 @@ Function LayerConstruct(const Name: String;
   ReaderParams: ITransientSimpleNamedValues; WriterParams: TSimpleNamedValues): TLSLayerConstruct;
 begin
 Result := LayerConstruct(Name,ReaderClass,WriterClass,ReaderParams.Implementor,WriterParams);
+Result.Reserved := ReaderParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -533,6 +539,7 @@ Function LayerConstruct(const Name: String;
   Params: ITransientSimpleNamedValues): TLSLayerConstruct;
 begin
 Result := LayerConstruct(Name,ReaderClass,WriterClass,Params.Implementor,Params.Implementor);
+Result.Reserved := Params;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -559,7 +566,7 @@ var
   WriterClass: TLSLayerWriterClass;
 begin
 If GetRegisteredLayer(RegisteredLayerID,ReaderClass,WriterClass) then
-  Result := LayerConstruct(NAme,ReaderClass,WriterClass,ReaderParams,WriterParams)
+  Result := LayerConstruct(Name,ReaderClass,WriterClass,ReaderParams,WriterParams)
 else
   raise ELSInvalidLayer.CreateFmt('LayerConstruct: Invalid registered layer ID "%s".',[RegisteredLayerID]);
 end;
@@ -570,6 +577,7 @@ Function LayerConstruct(const Name: String; const RegisteredLayerID: String;
   ReaderParams, WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct;
 begin
 Result := LayerConstruct(Name,RegisteredLayerID,ReaderParams.Implementor,WriterParams.Implementor);
+Result.Reserved := ReaderParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -578,6 +586,7 @@ Function LayerConstruct(const Name: String; const RegisteredLayerID: String;
   ReaderParams: TSimpleNamedValues; WriterParams: ITransientSimpleNamedValues): TLSLayerConstruct;
 begin
 Result := LayerConstruct(Name,RegisteredLayerID,ReaderParams,WriterParams.Implementor);
+Result.Reserved := WriterParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -586,6 +595,7 @@ Function LayerConstruct(const Name: String; const RegisteredLayerID: String;
   ReaderParams: ITransientSimpleNamedValues; WriterParams: TSimpleNamedValues): TLSLayerConstruct;
 begin
 Result := LayerConstruct(Name,RegisteredLayerID,ReaderParams.Implementor,WriterParams);
+Result.Reserved := ReaderParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -600,6 +610,7 @@ end;
 Function LayerConstruct(const Name: String; const RegisteredLayerID: String; Params: ITransientSimpleNamedValues): TLSLayerConstruct;
 begin
 Result := LayerConstruct(Name,RegisteredLayerID,Params.Implementor,Params.Implementor);
+Result.Reserved := Params;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -624,6 +635,7 @@ Function LayerParams(ReaderParams, WriterParams: TSimpleNamedValues): TLSLayerPa
 begin
 Result.ReaderParams := ReaderParams;
 Result.WriterParams := WriterParams;
+Result.Reserved := nil;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -631,6 +643,7 @@ end;
 Function LayerParams(ReaderParams, WriterParams: ITransientSimpleNamedValues): TLSLayerParams;
 begin
 Result := LayerParams(ReaderParams.Implementor,WriterParams.Implementor);
+Result.Reserved := ReaderParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -638,6 +651,7 @@ end;
 Function LayerParams(ReaderParams: TSimpleNamedValues; WriterParams: ITransientSimpleNamedValues): TLSLayerParams;
 begin
 Result := LayerParams(ReaderParams,WriterParams.Implementor);
+Result.Reserved := WriterParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -645,6 +659,7 @@ end;
 Function LayerParams(ReaderParams: ITransientSimpleNamedValues; WriterParams: TSimpleNamedValues): TLSLayerParams;
 begin
 Result := LayerParams(ReaderParams.Implementor,WriterParams);
+Result.Reserved := ReaderParams;
 end;
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -659,6 +674,7 @@ end;
 Function LayerParams(Params: ITransientSimpleNamedValues): TLSLayerParams;
 begin
 Result := LayerParams(Params.Implementor,Params.Implementor);
+Result.Reserved := Params;
 end;
 
 {===============================================================================
@@ -831,7 +847,7 @@ procedure TLayeredStream.DisconnectLayer(Index: Integer);
 begin
 If CheckIndex(Index) then
   begin
-    If Index < HighIndex then
+    If (Index < HighIndex) and Assigned(fLayers[Succ(Index)].Reader) and Assigned(fLayers[Succ(Index)].Writer) then
       begin
         fLayers[Succ(Index)].Reader.ReadConnection := fLayers[Index].Reader.ReadConnection;
         fLayers[Succ(Index)].Reader.Seekconnection := fLayers[Index].Reader.Seekconnection;
@@ -862,7 +878,7 @@ procedure TLayeredStream.Finalize;
 begin
 Clear; 
 If fOwnsTarget then
-  fTarget.Free;
+  FreeAndNil(fTarget);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1084,8 +1100,8 @@ begin
 If CheckIndex(Index) then
   begin
     FinalizeLayer(Index);
-    fLayers[Index].Reader.Free;
-    fLayers[Index].Writer.Free;
+    FreeAndNil(fLayers[Index].Reader);
+    FreeAndNil(fLayers[Index].Writer);
     For i := Index to Pred(HighIndex) do
       fLayers[i] := fLayers[i + 1];
     SetLength(fLayers,Length(fLayers) - 1);
@@ -1102,8 +1118,8 @@ begin
 For i := HighIndex downto LowIndex do
   begin
     FinalizeLayer(i);
-    fLayers[i].Reader.Free;
-    fLayers[i].Writer.Free;
+    FreeAndNil(fLayers[i].Reader);
+    FreeAndNil(fLayers[i].Writer);
   end;
 SetLength(fLayers,0);
 end;
@@ -2035,6 +2051,7 @@ var
   Index:  Integer;
 begin
 RegisteredLayersInitialize;
+Result := nil;
 RegisteredLayersLock.Acquire;
 try
   Index := RegisteredLayers.IndexOf(ID);
@@ -2054,6 +2071,7 @@ var
   Index:  Integer;
 begin
 RegisteredLayersInitialize;
+Result := nil;
 RegisteredLayersLock.Acquire;
 try
   Index := RegisteredLayers.IndexOf(ID);
