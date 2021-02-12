@@ -451,6 +451,8 @@ end;
 
 procedure TZLIBLayerReader.Finalize;
 begin
+If fProcessing then
+  fProcessor.Final;
 fProcessor.Free;
 BufferFinal(fReadBuffer);
 BufferFinal(fOutputBuffer);
@@ -640,6 +642,8 @@ end;
 
 procedure TZLIBLayerWriter.Finalize;
 begin
+If fProcessing then
+  fProcessor.Final;
 fProcessor.Free;
 BufferFinal(fOutputBuffer);
 inherited;

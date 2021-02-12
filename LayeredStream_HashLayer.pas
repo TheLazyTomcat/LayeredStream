@@ -304,7 +304,11 @@ end;
 procedure THashLayerReader.Finalize;
 begin
 If Assigned(fHasher) then
-  fHasher.Free;
+  begin
+    If fHashing then
+      fHasher.Final;
+    fHasher.Free;
+  end;
 inherited;
 end;
 
@@ -380,7 +384,11 @@ end;
 procedure THashLayerWriter.Finalize;
 begin
 If Assigned(fHasher) then
-  fHasher.Free;
+  begin
+    If fHashing then
+      fHasher.Final;
+    fHasher.Free;
+  end;
 inherited;
 end;
 
