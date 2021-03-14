@@ -129,6 +129,7 @@ type
     fProcessor:     TZProcessor;
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
+    procedure ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver); override;
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
     procedure OutputHandler(Sender: TObject; const Buffer; Size: TMemSize); virtual;
@@ -137,7 +138,6 @@ type
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); override;
-    procedure Update(Params: TSimpleNamedValues); override;
     procedure Final; override;
     property Processing: Boolean read fProcessing;
     property PropagateSeek: Boolean read fPropagateSeek write fPropagateSeek;
@@ -162,6 +162,7 @@ type
     fProcessor:     TZProcessor;
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
+    procedure ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver); override;
     procedure Initialize(Params: TSimpleNamedValues); override;
     procedure Finalize; override;
     procedure OutputHandler(Sender: TObject; const Buffer; Size: TMemSize); virtual;
@@ -170,7 +171,6 @@ type
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
     procedure Init(Params: TSimpleNamedValues); override;
-    procedure Update(Params: TSimpleNamedValues); override;
     procedure Flush; override;
     procedure Final; override;
     property Processing: Boolean read fProcessing;
@@ -432,10 +432,20 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
+procedure TZLIBLayerReader.ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver);
+begin
+GetNamedValue(Params,'TZLIBLayerReader.PropagateSeek',fPropagateSeek);
+end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
+
+//------------------------------------------------------------------------------
+
 procedure TZLIBLayerReader.Initialize(Params: TSimpleNamedValues);
 var
   Temp: Integer;
 begin
+fPropagateSeek := True;
 inherited;
 BufferInit(fOutputBuffer);
 BufferInit(fReadBuffer);
@@ -443,8 +453,6 @@ Temp := LS_READ_READBUFFER_DEFSIZE;
 GetNamedValue(Params,'TZLIBLayerReader.ReadBufferSize',Temp);
 BufferGet(fReadBuffer,Temp);
 fUsed := 0;
-fPropagateSeek := True;
-GetNamedValue(Params,'TZLIBLayerReader.PropagateSeek',fPropagateSeek);
 end;
 
 //------------------------------------------------------------------------------
@@ -534,23 +542,14 @@ end;
 
 procedure TZLIBLayerReader.Init(Params: TSimpleNamedValues);
 begin
-GetNamedValue(Params,'TZLIBLayerReader.PropagateSeek',fPropagateSeek);
+inherited;
 If not fProcessing then
   begin
-    inherited;
     fUsed := 0;
     fProcessing := True;
     fProcessor.OnOutput := OutputHandler;
     fProcessor.Init;
   end;
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TZLIBLayerReader.Update(Params: TSimpleNamedValues);
-begin
-inherited;
-GetNamedValue(Params,'TZLIBLayerReader.PropagateSeek',fPropagateSeek);
 end;
 
 //------------------------------------------------------------------------------
@@ -562,8 +561,8 @@ If fProcessing then
     fProcessor.Final;
     fProcessor.OnOutput := nil;
     fProcessing := False;
-    inherited;
   end;
+inherited;
 end;
 
 {===============================================================================
@@ -628,14 +627,22 @@ end;
 
 //------------------------------------------------------------------------------
 
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
+procedure TZLIBLayerWriter.ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver);
+begin
+GetNamedValue(Params,'TZLIBLayerWriter.PropagateSeek',fPropagateSeek);
+end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
+
+//------------------------------------------------------------------------------
+
 procedure TZLIBLayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
+fPropagateSeek := True;
 inherited;
 fProcessing := False;
 BufferInit(fOutputBuffer);
 fUsed := 0;
-fPropagateSeek := True;
-GetNamedValue(Params,'TZLIBLayerWriter.PropagateSeek',fPropagateSeek);
 end;
 
 //------------------------------------------------------------------------------
@@ -706,23 +713,14 @@ end;
 
 procedure TZLIBLayerWriter.Init(Params: TSimpleNamedValues);
 begin
-GetNamedValue(Params,'TZLIBLayerWriter.PropagateSeek',fPropagateSeek);
+inherited;
 If not fProcessing then
   begin
-    inherited;
     fUsed := 0;
     fProcessing := True;
     fProcessor.OnOutput := OutputHandler;
     fProcessor.Init;
   end;
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TZLIBLayerWriter.Update(Params: TSimpleNamedValues);
-begin
-inherited;
-GetNamedValue(Params,'TZLIBLayerWriter.PropagateSeek',fPropagateSeek);
 end;
 
 //------------------------------------------------------------------------------
@@ -743,8 +741,8 @@ If fProcessing then
     fProcessor.OnOutput := nil;
     fProcessing := False;
     WriteBuffered;
-    inherited;
   end;
+inherited;
 end;
 
 {===============================================================================
@@ -784,7 +782,6 @@ var
   CompLevel:  TZCompressionLevel;
   StreamType: TZStreamType;
 begin
-inherited;
 Temp := 0;
 If GetNamedValue(Params,'TZLIBCompressionLayerReader.CompressionLevel',Temp) then
   CompLevel := ZLibCompLevelFromInteger(Temp)
@@ -795,6 +792,7 @@ If GetNamedValue(Params,'TZLIBCompressionLayerReader.StreamType',Temp) then
 else
   StreamType := zstDefault;
 fProcessor := TZCompressor.Create(CompLevel,StreamType);
+inherited;
 end;
 
 {-------------------------------------------------------------------------------
@@ -843,7 +841,6 @@ var
   CompLevel:  TZCompressionLevel;
   StreamType: TZStreamType;
 begin
-inherited;
 Temp := 0;
 If GetNamedValue(Params,'TZLIBCompressionLayerWriter.CompressionLevel',Temp) then
   CompLevel := ZLibCompLevelFromInteger(Temp)
@@ -854,6 +851,7 @@ If GetNamedValue(Params,'TZLIBCompressionLayerWriter.StreamType',Temp) then
 else
   StreamType := zstDefault;
 fProcessor := TZCompressor.Create(CompLevel,StreamType);
+inherited;
 end;
 
 {-------------------------------------------------------------------------------
@@ -893,12 +891,12 @@ procedure TZLIBDecompressionLayerReader.Initialize(Params: TSimpleNamedValues);
 var
   StreamType: Integer;
 begin
-inherited;
 StreamType := 0;
 If GetNamedValue(Params,'TZLIBDecompressionLayerReader.StreamType',StreamType) then
   fProcessor := TZDecompressor.Create(ZLibStreamTypeFromInteger(StreamType))
 else
   fProcessor := TZDecompressor.Create;
+inherited;
 end;
 
 {-------------------------------------------------------------------------------
@@ -944,12 +942,12 @@ procedure TZLIBDecompressionLayerWriter.Initialize(Params: TSimpleNamedValues);
 var
   StreamType: Integer;
 begin
-inherited;
 StreamType := 0;
 If GetNamedValue(Params,'TZLIBDecompressionLayerWriter.StreamType',StreamType) then
   fProcessor := TZDecompressor.Create(ZLibStreamTypeFromInteger(StreamType))
 else
   fProcessor := TZDecompressor.Create;
+inherited;
 end;
 
 {-------------------------------------------------------------------------------

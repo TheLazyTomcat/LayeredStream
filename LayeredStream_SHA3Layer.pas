@@ -485,10 +485,9 @@ type
 type
   TKeccakVarLenLayerReader = class(TKeccakLayerReader)
   protected
-    procedure Initialize(Params: TSimpleNamedValues); override;
+    procedure ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver); override;
   public
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
   end;
 
 {===============================================================================
@@ -502,10 +501,9 @@ type
 type
   TKeccakVarLenLayerWriter = class(TKeccakLayerWriter)
   protected
-    procedure Initialize(Params: TSimpleNamedValues); override;
+    procedure ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver); override;
   public
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
   end;
 
 {===============================================================================
@@ -522,10 +520,10 @@ type
     Function GetKeccakCHasher: TKeccakCHash;
     Function GetKeccakC: TKeccakC;
   protected
+    procedure ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver); override;
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
     property KeccakCHasher: TKeccakCHash read GetKeccakCHasher;
     property KeccakC: TKeccakC read GetKeccakC;
   end;
@@ -544,10 +542,10 @@ type
     Function GetKeccakCHasher: TKeccakCHash;
     Function GetKeccakC: TKeccakC;
   protected
+    procedure ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver); override;
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
     property KeccakCHasher: TKeccakCHash read GetKeccakCHasher;
     property KeccakC: TKeccakC read GetKeccakC;
   end;
@@ -716,8 +714,8 @@ end;
 
 procedure TKeccak224LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TKeccak224Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -750,8 +748,8 @@ end;
 
 procedure TKeccak224LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TKeccak224Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -784,8 +782,8 @@ end;
 
 procedure TKeccak256LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TKeccak256Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -818,8 +816,8 @@ end;
 
 procedure TKeccak256LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TKeccak256Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -852,8 +850,8 @@ end;
 
 procedure TKeccak384LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TKeccak384Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -886,8 +884,8 @@ end;
 
 procedure TKeccak384LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TKeccak384Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -920,8 +918,8 @@ end;
 
 procedure TKeccak512LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TKeccak512Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -954,8 +952,8 @@ end;
 
 procedure TKeccak512LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TKeccak512Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -1036,8 +1034,8 @@ end;
 
 procedure TSHA3_224LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA3_224Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -1070,8 +1068,8 @@ end;
 
 procedure TSHA3_224LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA3_224Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -1104,8 +1102,8 @@ end;
 
 procedure TSHA3_256LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA3_256Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -1138,8 +1136,8 @@ end;
 
 procedure TSHA3_256LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA3_256Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -1172,8 +1170,8 @@ end;
 
 procedure TSHA3_384LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA3_384Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -1206,8 +1204,8 @@ end;
 
 procedure TSHA3_384LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA3_384Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -1240,8 +1238,8 @@ end;
 
 procedure TSHA3_512LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA3_512Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -1274,8 +1272,8 @@ end;
 
 procedure TSHA3_512LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA3_512Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -1290,14 +1288,15 @@ end;
     TKeccakVarLenLayerReader - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TKeccakVarLenLayerReader.Initialize(Params: TSimpleNamedValues);
+procedure TKeccakVarLenLayerReader.ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver);
 var
   Temp: Integer;
 begin
 inherited;
 Temp := 0;
-If GetNamedValue(Params,'TKeccakVarLenLayerReader.HashBits',Temp) then
-  TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
+If Caller in [loprConstructor,loprInitializer] then
+  If GetNamedValue(Params,'TKeccakVarLenLayerReader.HashBits',Temp) then
+    TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1311,18 +1310,6 @@ Result[0] := LayerObjectParam('TKeccakVarLenLayerReader.HashBits',nvtInteger,[lo
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
-//------------------------------------------------------------------------------
-
-procedure TKeccakVarLenLayerReader.Init(Params: TSimpleNamedValues);
-var
-  Temp: Integer;
-begin
-inherited;
-Temp := 0;
-If GetNamedValue(Params,'TKeccakVarLenLayerReader.HashBits',Temp) then
-  TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
-end;
-
 {===============================================================================
 --------------------------------------------------------------------------------
                             TKeccakVarLenLayerWriter
@@ -1332,14 +1319,15 @@ end;
     TKeccakVarLenLayerWriter - class implementation
 ===============================================================================}
 
-procedure TKeccakVarLenLayerWriter.Initialize(Params: TSimpleNamedValues);
+procedure TKeccakVarLenLayerWriter.ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver);
 var
   Temp: Integer;
 begin
 inherited;
 Temp := 0;
-If GetNamedValue(Params,'TKeccakVarLenLayerWriter.HashBits',Temp) then
-  TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
+If Caller in [loprConstructor,loprInitializer] then
+  If GetNamedValue(Params,'TKeccakVarLenLayerWriter.HashBits',Temp) then
+    TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1351,18 +1339,6 @@ begin
 SetLength(Result,1);
 Result[0] := LayerObjectParam('TKeccakVarLenLayerWriter.HashBits',nvtInteger,[loprConstructor,loprInitializer]);
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TKeccakVarLenLayerWriter.Init(Params: TSimpleNamedValues);
-var
-  Temp: Integer;
-begin
-inherited;
-Temp := 0;
-If GetNamedValue(Params,'TKeccakVarLenLayerWriter.HashBits',Temp) Then
-  TKeccakVarHash(fHasher).HashBits := UInt32(Temp);
 end;
 
 {===============================================================================
@@ -1393,15 +1369,23 @@ end;
     TKeccakCLayerReader - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TKeccakCLayerReader.Initialize(Params: TSimpleNamedValues);
+procedure TKeccakCLayerReader.ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver);
 var
   Temp: Integer;
 begin
+inherited;
+Temp := 0;
+If Caller in [loprConstructor,loprInitializer] then
+  If GetNamedValue(Params,'TKeccakCLayerReader.Capacity',Temp) then
+    TKeccakCHash(fHasher).Capacity := UInt32(Temp);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TKeccakCLayerReader.Initialize(Params: TSimpleNamedValues);
+begin
 fHasher := TKeccakCHash.Create;
 inherited;  // hasher is accessed here
-Temp := 0;
-If GetNamedValue(Params,'TKeccakCLayerReader.Capacity',Temp) then
-  TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1413,18 +1397,6 @@ begin
 SetLength(Result,1);
 Result[0] := LayerObjectParam('TKeccakCLayerReader.Capacity',nvtInteger,[loprConstructor,loprInitializer]);
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TKeccakCLayerReader.Init(Params: TSimpleNamedValues);
-var
-  Temp: Integer;
-begin
-inherited;
-Temp := 0;
-If GetNamedValue(Params,'TKeccakCLayerReader.Capacity',Temp) then
-  TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
 
 {===============================================================================
@@ -1455,15 +1427,23 @@ end;
     TKeccakCLayerWriter - protected methods
 -------------------------------------------------------------------------------}
 
-procedure TKeccakCLayerWriter.Initialize(Params: TSimpleNamedValues);
+procedure TKeccakCLayerWriter.ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver);
 var
   Temp: Integer;
 begin
+inherited;
+Temp := 0;
+If Caller in [loprConstructor,loprInitializer] then
+  If GetNamedValue(Params,'TKeccakCLayerWriter.Capacity',Temp) then
+    TKeccakCHash(fHasher).Capacity := UInt32(Temp);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TKeccakCLayerWriter.Initialize(Params: TSimpleNamedValues);
+begin
 fHasher := TKeccakCHash.Create;
 inherited;  // hasher is accessed here
-Temp := 0;
-If GetNamedValue(Params,'TKeccakCLayerWriter.Capacity',Temp) then
-  TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
 
 {-------------------------------------------------------------------------------
@@ -1475,18 +1455,6 @@ begin
 SetLength(Result,1);
 Result[0] := LayerObjectParam('TKeccakCLayerWriter.Capacity',nvtInteger,[loprConstructor,loprInitializer]);
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TKeccakCLayerWriter.Init(Params: TSimpleNamedValues);
-var
-  Temp: Integer;
-begin
-inherited;
-Temp := 0;
-If GetNamedValue(Params,'TKeccakCLayerWriter.Capacity',Temp) then
-  TKeccakCHash(fHasher).Capacity := UInt32(Temp);
 end;
 
 {===============================================================================

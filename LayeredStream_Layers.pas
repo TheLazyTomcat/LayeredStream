@@ -194,7 +194,7 @@ type
         even seek. The requests and data are stopped at this layer and are not
         passed to the next layer.
         Reader, when asked to read some data, will, depending on settings,
-        return 0 ot the buffer size - in which case the buffer is filled with
+        return 0 or the buffer size - in which case the buffer is filled with
         zeroes.
         Writer will, depending on settings, return 0 or buffer size. Data
         passed in the buffer are completely ignored.
@@ -375,7 +375,7 @@ type
     - always append inherited parameters to current parameter list
     - expect methods init, update, flush and final to be called even when not
       needed, expect them to be called at any time, any number of times, in any
-      order (when realy needed, wrong order is allowed produce an exception)
+      order (when realy needed, wrong order is allowed to produce an exception)
     - be aware of the order in which methods init, update, flush and final are
       called within the layer stack
     - properly override methods Initialize and Finalize (they are called from
@@ -400,6 +400,22 @@ type
     procedure SetActive(Value: Boolean); virtual;
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual; abstract;
     Function SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
+  {
+    It is recommended to process parameters in the individual methods that are
+    accepting them.
+    This method is here for situations where you want to do the same procesing
+    for multiple or all receiving methods, so you don't need to repeat the same
+    code.
+    Note that this method is called automatically, you don't have to call it
+    explicitly.
+  }
+    procedure ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver); virtual;
+  {
+    NOTE - if you are creating some internal object in Initialize, it is
+           recommended do so before calling an inherited code.
+           Also, any field or property that is set in this method and that can
+           be changed in ParamsCommon should be set before a call to inherited.
+  }
     procedure Initialize(Params: TSimpleNamedValues); virtual;
     procedure Finalize; virtual;
   public
@@ -569,11 +585,21 @@ end;
 //------------------------------------------------------------------------------
 
 {$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
+procedure TLSLayerObjectBase.ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver);
+begin
+// do nothing at this point
+end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
+
+//------------------------------------------------------------------------------
+
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TLSLayerObjectBase.Initialize(Params: TSimpleNamedValues);
 begin
 fCounterpart := nil;
 fSeekConnection := nil;
 fActive := True;
+ParamsCommon(Params,loprConstructor);
 end;
 {$IFDEF FPCDWM}{$POP}{$ENDIF}
 
@@ -646,12 +672,10 @@ end;
 
 //------------------------------------------------------------------------------
 
-{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TLSLayerObjectBase.Init(Params: TSimpleNamedValues = nil);
 begin
-// nothing to do
+ParamsCommon(Params,loprInitializer);
 end;
-{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -662,12 +686,10 @@ end;
 
 //------------------------------------------------------------------------------
 
-{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
 procedure TLSLayerObjectBase.Update(Params: TSimpleNamedValues = nil);
 begin
-// nothing to do
+ParamsCommon(Params,loprUpdater);
 end;
-{$IFDEF FPCDWM}{$POP}{$ENDIF}
 
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 

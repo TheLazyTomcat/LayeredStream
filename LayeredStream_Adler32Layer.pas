@@ -145,8 +145,8 @@ end;
 
 procedure TAdler32LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TAdler32Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -179,8 +179,8 @@ end;
 
 procedure TAdler32LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TAdler32Hash.Create;
+inherited;
 end;
 
 {===============================================================================

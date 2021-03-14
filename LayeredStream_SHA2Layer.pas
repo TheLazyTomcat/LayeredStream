@@ -439,8 +439,8 @@ end;
 
 procedure TSHA224LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA224Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -473,8 +473,8 @@ end;
 
 procedure TSHA224LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA224Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -507,8 +507,8 @@ end;
 
 procedure TSHA256LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA256Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -541,8 +541,8 @@ end;
 
 procedure TSHA256LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA256Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -575,8 +575,8 @@ end;
 
 procedure TSHA384LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA384Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -609,8 +609,8 @@ end;
 
 procedure TSHA384LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA384Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -643,8 +643,8 @@ end;
 
 procedure TSHA512LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA512Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -677,8 +677,8 @@ end;
 
 procedure TSHA512LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA512Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -711,8 +711,8 @@ end;
 
 procedure TSHA512_224LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA512_224Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -745,8 +745,8 @@ end;
 
 procedure TSHA512_224LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA512_224Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -779,8 +779,8 @@ end;
 
 procedure TSHA512_256LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA512_256Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -813,8 +813,8 @@ end;
 
 procedure TSHA512_256LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA512_256Hash.Create;
+inherited;
 end;
 
 {===============================================================================

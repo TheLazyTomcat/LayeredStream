@@ -207,11 +207,11 @@ end;
 
 procedure TCRC32LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 If Assigned(Params) then
   fHasher := CreateHasherCommon('TCRC32LayerReader',Params)
 else
   fHasher := TCRC32Hash.Create;
+inherited;
 end;
 
 {-------------------------------------------------------------------------------
@@ -263,11 +263,11 @@ end;
 
 procedure TCRC32LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 If Assigned(Params) then
   fHasher := CreateHasherCommon('TCRC32LayerWriter',Params)
 else
   fHasher := TCRC32Hash.Create;
+inherited;
 end;
 
 {-------------------------------------------------------------------------------

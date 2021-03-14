@@ -145,8 +145,8 @@ end;
 
 procedure TSHA0LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA0Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -179,8 +179,8 @@ end;
 
 procedure TSHA0LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TSHA0Hash.Create;
+inherited;
 end;
 
 {===============================================================================

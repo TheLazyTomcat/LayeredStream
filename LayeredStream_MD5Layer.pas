@@ -145,8 +145,8 @@ end;
 
 procedure TMD5LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TMD5Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -179,8 +179,8 @@ end;
 
 procedure TMD5LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TMD5Hash.Create;
+inherited;
 end;
 
 {===============================================================================

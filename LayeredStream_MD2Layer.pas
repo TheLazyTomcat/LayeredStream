@@ -145,8 +145,8 @@ end;
 
 procedure TMD2LayerReader.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TMD2Hash.Create;
+inherited;
 end;
 
 {===============================================================================
@@ -179,8 +179,8 @@ end;
 
 procedure TMD2LayerWriter.Initialize(Params: TSimpleNamedValues);
 begin
-inherited;
 fHasher := TMD2Hash.Create;
+inherited;
 end;
 
 {===============================================================================

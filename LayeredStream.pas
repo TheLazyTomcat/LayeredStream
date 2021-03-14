@@ -463,6 +463,7 @@ uses
   LayeredStream_SHA1Layer,
   LayeredStream_SHA2Layer,
   LayeredStream_SHA3Layer,
+  LayeredStream_CITYLayer,
   // compression layers
   LayeredStream_ZLIBLayer;
 

@@ -94,12 +94,11 @@ type
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
+    procedure ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver); override;
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
-    procedure Update(Params: TSimpleNamedValues); override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
     property SilentStop: Boolean read fSilentStop write fSilentStop;
     property ReadZeroes: Boolean read fReadZeroes write fReadZeroes;
@@ -122,12 +121,11 @@ type
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
+    procedure ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver); override;
     procedure Initialize(Params: TSimpleNamedValues); override;
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
-    procedure Init(Params: TSimpleNamedValues); override;
-    procedure Update(Params: TSimpleNamedValues); override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
     property SilentStop: Boolean read fSilentStop write fSilentStop;
     property WriteSink: Boolean read fWriteSink write fWriteSink;
@@ -140,6 +138,7 @@ uses
 
 {$IFDEF FPC_DisableWarns}
   {$DEFINE FPCDWM}
+  {$DEFINE W5024:={$WARN 5024 OFF}} // Parameter "$1" not used
   {$DEFINE W5058:={$WARN 5058 OFF}} // Variable "$1" does not seem to be initialized
 {$ENDIF}
 
@@ -191,15 +190,23 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TStopLayerReader.Initialize(Params: TSimpleNamedValues);
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
+procedure TStopLayerReader.ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver);
 begin
-inherited;
-fStopSeek := False;
-fSilentStop := True;
-fReadZeroes := True;
 GetNamedValue(Params,'TStopLayerReader.StopSeek',fStopSeek);
 GetNamedValue(Params,'TStopLayerReader.SilentStop',fSilentStop);
 GetNamedValue(Params,'TStopLayerReader.ReadZeroes',fReadZeroes);
+end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
+
+//------------------------------------------------------------------------------
+
+procedure TStopLayerReader.Initialize(Params: TSimpleNamedValues);
+begin
+fStopSeek := False;
+fSilentStop := True;
+fReadZeroes := True;
+inherited;
 end;
 
 {-------------------------------------------------------------------------------
@@ -221,27 +228,6 @@ Result[1] := LayerObjectParam('TStopLayerReader.SilentStop',nvtBool,[loprConstru
 Result[2] := LayerObjectParam('TStopLayerReader.ReadZeroes',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
-
-//------------------------------------------------------------------------------
-
-procedure TStopLayerReader.Init(Params: TSimpleNamedValues);
-begin
-inherited;
-GetNamedValue(Params,'TStopLayerReader.StopSeek',fStopSeek);
-GetNamedValue(Params,'TStopLayerReader.SilentStop',fSilentStop);
-GetNamedValue(Params,'TStopLayerReader.ReadZeroes',fReadZeroes);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TStopLayerReader.Update(Params: TSimpleNamedValues);
-begin
-inherited;
-GetNamedValue(Params,'TStopLayerReader.StopSeek',fStopSeek);
-GetNamedValue(Params,'TStopLayerReader.SilentStop',fSilentStop);
-GetNamedValue(Params,'TStopLayerReader.ReadZeroes',fReadZeroes);
-end;
-
 
 {===============================================================================
 --------------------------------------------------------------------------------
@@ -287,15 +273,23 @@ end;
 
 //------------------------------------------------------------------------------
 
-procedure TStopLayerWriter.Initialize(Params: TSimpleNamedValues);
+{$IFDEF FPCDWM}{$PUSH}W5024{$ENDIF}
+procedure TStopLayerWriter.ParamsCommon(Params: TSimpleNamedValues; Caller: TLSLayerObjectParamReceiver);
 begin
-inherited;
-fStopSeek := False;
-fSilentStop := True;
-fWriteSink := True;
 GetNamedValue(Params,'TStopLayerWriter.StopSeek',fStopSeek);
 GetNamedValue(Params,'TStopLayerWriter.SilentStop',fSilentStop);
 GetNamedValue(Params,'TStopLayerWriter.WriteSink',fWriteSink);
+end;
+{$IFDEF FPCDWM}{$POP}{$ENDIF}
+
+//------------------------------------------------------------------------------
+
+procedure TStopLayerWriter.Initialize(Params: TSimpleNamedValues);
+begin
+fStopSeek := False;
+fSilentStop := True;
+fWriteSink := True;
+inherited;
 end;
 
 {-------------------------------------------------------------------------------
@@ -316,26 +310,6 @@ Result[0] := LayerObjectParam('TStopLayerWriter.StopSeek',nvtBool,[loprConstruct
 Result[1] := LayerObjectParam('TStopLayerWriter.SilentStop',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 Result[2] := LayerObjectParam('TStopLayerWriter.WriteSink',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TStopLayerWriter.Init(Params: TSimpleNamedValues);
-begin
-inherited;
-GetNamedValue(Params,'TStopLayerWriter.StopSeek',fStopSeek);
-GetNamedValue(Params,'TStopLayerWriter.SilentStop',fSilentStop);
-GetNamedValue(Params,'TStopLayerWriter.WriteSink',fWriteSink);
-end;
-
-//------------------------------------------------------------------------------
-
-procedure TStopLayerWriter.Update(Params: TSimpleNamedValues);
-begin
-inherited;
-GetNamedValue(Params,'TStopLayerWriter.StopSeek',fStopSeek);
-GetNamedValue(Params,'TStopLayerWriter.SilentStop',fSilentStop);
-GetNamedValue(Params,'TStopLayerWriter.WriteSink',fWriteSink);
 end;
 
 {===============================================================================
