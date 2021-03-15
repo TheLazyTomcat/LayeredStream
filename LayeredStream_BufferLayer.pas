@@ -86,10 +86,11 @@ uses
 type
   TBufferLayerReader = class(TLSLayerReader)
   private
-    fMemory:  Pointer;
-    fSize:    LongInt;
-    fUsed:    LongInt;
-    fOffset:  LongInt;
+    fMemory:    Pointer;
+    fSize:      LongInt;
+    fUsed:      LongInt;
+    fOffset:    LongInt;
+    fStartPos:  Int64;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function ReadActive(out Buffer; Size: LongInt): LongInt; override;
@@ -101,9 +102,17 @@ type
     procedure InternalFinal; override;
     procedure Flush; override;
     procedure Final; override; // only calls Flush
+    Function SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     property Memory: Pointer read fMemory;
     property Size: LongInt read fSize;
     property Used: LongInt read fUsed;
+    property Offset: LongInt read fOffset;
+  {
+    StartPos is a position in the underlaying stream where the current buffered
+    data starts.
+    If nothing is buffered, it will be set to a negative value.
+  }
+    property StartPos: Int64 read fStartPos;
   end;
 
 {===============================================================================
@@ -117,9 +126,10 @@ type
 type
   TBufferLayerWriter = class(TLSLayerWriter)
   private
-    fMemory:  Pointer;
-    fSize:    LongInt;
-    fUsed:    LongInt;
+    fMemory:    Pointer;
+    fSize:      LongInt;
+    fUsed:      LongInt;
+    fStartPos:  Int64;
   protected
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     Function WriteActive(const Buffer; Size: LongInt): LongInt; override;
@@ -131,9 +141,16 @@ type
     procedure InternalFinal; override;
     procedure Flush; override;
     procedure Final; override;
+    Function SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     property Memory: Pointer read fMemory;
     property Size: LongInt read fSize;
     property Used: LongInt read fUsed;
+  {
+    StartPos is a position in the underlaying stream where the current buffered
+    data will be written.
+    If nothing is buffered, it will be set to a negative value.
+  }    
+    property StartPos: Int64 read fStartPos;    
   end;
 
 implementation
@@ -166,7 +183,7 @@ const
 
 Function TBufferLayerReader.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
-Flush;
+// should be flushed by layered stream at this point
 Result := SeekOut(Offset,Origin);
 end;
 
@@ -184,6 +201,7 @@ If Size > 0 then
     // if buffer is empty, try to fill it
     If fUsed <= 0 then
       begin
+        fStartPos := SeekInternal(0,soCurrent);
         fUsed := ReadOut(fMemory^,fSize);
         fOffset := 0;
       end;
@@ -198,16 +216,24 @@ If Size > 0 then
       {$IFDEF FPCDWM}{$POP}{$ENDIF}
         fUsed := fUsed - Size;
         If fUsed <> 0 then
-          fOffset := fOffset + Size
+          begin
+            // some data are left in the buffer
+            fOffset := fOffset + Size;
+            fStartPos := fStartPos + Size; 
+          end
         else
-          fOffset := 0;
+          begin
+            // buffer is now empty
+            fOffset := 0;
+            fStartPos := Low(Int64);
+          end;
         Result := Size;
       end
     else If Size <= fSize then
       begin
       {
-        not all required data are buffered, but can all fit into allocated buffer -
-        copy whatever is buffered to the output...
+        not all required data are buffered, but can all fit into allocated
+        buffer - copy whatever is buffered to the output...
       }
         If fUsed <> 0 then
           begin
@@ -218,28 +244,40 @@ If Size > 0 then
             fUsed := 0;
           end
         else BytesCopied := 0;
+        // buffer is now empty
         fOffset := 0;
+        fStartPos := Low(Int64);
         If (Size - BytesCopied) <= (fSize shr 1) then
           begin
           {
-            remaining required size is smaller or equal than 1/2 of the buffer - try
-            to fill the buffer and move the remaining data (or at least part of
-            them) to the output
+            remaining required size is smaller or equal than 1/2 of the buffer -
+            try to fill the buffer and move the remaining data (or at least part
+            of them) to the output
           }
+            fStartPos := SeekInternal(0,soCurrent);
             BytesRead := ReadOut(fMemory^,fSize);
             BytesToCopy := Min(BytesRead,Size - BytesCopied);
           {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
             Move(fMemory^,Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,BytesToCopy);
           {$IFDEF FPCDWM}{$POP}{$ENDIF}
             fUsed := BytesRead - BytesToCopy;
-            fOffset := BytesToCopy;
+            If fUSed <> 0 then
+              begin
+                fOffset := BytesToCopy;
+                fStartPos := fStartPos + fOffset;
+              end
+            else
+              begin
+                fOffset := 0;
+                fStartPos := Low(Int64);
+              end;
             Result := BytesCopied + BytesToCopy;
           end
         else
           begin
           {
-            remaining required size is larger than 1/2 of the buffer - try read the
-            rest directly to the output
+            remaining required size is larger than 1/2 of the buffer - try read
+            the rest directly to the output
           }
           {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
             BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,Size - BytesCopied);
@@ -251,8 +289,8 @@ If Size > 0 then
       begin
       {
         required data not buffered and required size is larger than size of the
-        allocated buffer - copy what is buffered and then try read the rest directly
-        to the output
+        allocated buffer - copy what is buffered and then try read the rest
+        directly to the output
       }
         If fUsed <> 0 then
           begin
@@ -264,6 +302,7 @@ If Size > 0 then
           end
         else BytesCopied := 0;
         fOffset := 0;
+        fStartPos := Low(Int64);
       {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
         BytesRead := ReadOut(Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,Size - BytesCopied);
       {$IFDEF FPCDWM}{$POP}{$ENDIF}
@@ -284,6 +323,7 @@ GetIntegerNamedValue(Params,'TBufferLayerReader.Size',fSize);
 GetMem(fMemory,fSize);
 fUsed := 0;
 fOffset := 0;
+fStartPos := Low(Int64);
 end;
 
 //------------------------------------------------------------------------------
@@ -323,13 +363,20 @@ end;
 //------------------------------------------------------------------------------
 
 procedure TBufferLayerReader.Flush;
+var
+  Temp: LongInt;
 begin
 inherited;
-// discard everything still in the buffer and seek back the buffered amount
-If fActive and (fUsed > 0) then
-  SeekOut(-fUsed,soCurrent);
-fUsed := 0;
-fOffset := 0;
+If fActive then
+  begin
+    Temp := fUsed;
+    fUsed := 0;
+    fOffset := 0;
+    fStartPos := Low(Int64); // nothing is buffered anymore
+    // discard everything still in the buffer and seek back the buffered amount
+    If Temp > 0 then
+      SeekInternal(-Temp,soCurrent);
+  end;
 end;
 
 //------------------------------------------------------------------------------
@@ -337,6 +384,54 @@ end;
 procedure TBufferLayerReader.Final;
 begin
 Flush;
+end;
+
+//------------------------------------------------------------------------------
+
+Function TBufferLayerReader.SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64;
+
+  Function FlushAndSeek(const Offset: Int64; Origin: TSeekOrigin): Int64;
+  begin
+    Flush;
+    Result := inherited SeekInternal(Offset,Origin);
+  end;
+
+begin
+If fActive and (fUsed <> 0) and (fStartPos >= 0) then
+  case Origin of
+    soBeginning:  If (Offset >= fStartPos) and (Offset < (fStartPos + fUsed)) then
+                    begin
+                      // seek into buffer
+                      fUsed := fUsed  - (Offset - fStartPos);
+                      fOffset := fOffset + LongInt(Offset - fStartPos);
+                      fStartPos := Offset;
+                      Result := Offset;
+                    end
+                  // seek outside of the buffer                    
+                  else Result := FlushAndSeek(Offset,Origin);
+
+    soCurrent:    If Offset = 0 then
+                    // seek to current position (start of buffer)
+                    Result := fStartPos
+                  else If (Offset > 0) and (Offset < fUsed) then
+                    begin
+                      // seek into buffer
+                      fUsed := fUsed - Offset;
+                      fOffset := fOffset + LongInt(Offset);
+                      fStartPos := fStartPos + Offset;
+                      Result := StartPos;
+                    end
+                  // seek outside of the buffer
+                  else Result := FlushAndSeek(Offset,Origin);
+  {
+    There is no way of knowing where the stream ends in relation to currently
+    buffered data, so flush and do normal seek.
+  }
+    soEnd:        Result := FlushAndSeek(Offset,Origin);
+  else
+    Result := FlushAndSeek(Offset,Origin);
+  end
+else Result := inherited SeekInternal(Offset,Origin);
 end;
 
 
@@ -357,7 +452,7 @@ const
 
 Function TBufferLayerWriter.SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
-Flush;
+// should be flushed by layered stream at this point
 Result := SeekOut(Offset,Origin);
 end;
 
@@ -371,8 +466,8 @@ var
   procedure ShiftBuffer(Amount: LongInt);
   begin
   {
-    Called when part of the buffer was consumed and the remaining data needs to
-    be shifted down.
+    Called when part of the buffer was consumed (written) and the remaining
+    data needs to be shifted down.
     Parameter Amount indicates number of bytes consumed.
   }
     If (fUsed - Amount) > 0 then
@@ -380,6 +475,14 @@ var
       Move(Pointer(PtrUInt(fMemory) + PtrUInt(Amount))^,fMemory^,fUsed - Amount);
     {$IFDEF FPCDWM}{$POP}{$ENDIF}
     fUsed := fUsed - Amount;
+    If fUsed <> 0 then
+      begin
+        If fStartPos < 0 then
+          fStartPos := SeekInternal(0,soCurrent)
+        else
+          fStartPos := fStartPos + Amount;
+      end
+    else fStartPos := Low(Int64);
   end;
 
 begin
@@ -394,20 +497,22 @@ If Size > 0 then
         Move(Buffer,Pointer(PtrUInt(fMemory) + PtrUInt(fUsed))^,Size);
       {$IFDEF FPCDWM}{$POP}{$ENDIF}
         fUsed := fUsed + Size;
+        If (fUsed <> 0) and (fStartPos < 0) then
+          fStartPos := SeekInternal(0,soCurrent);
         Result := Size;
       end
     else If Size < fSize then
       begin
       {
-        data won't fit free space, but are smaller than allocated buffer - try to
-        write what is buffered, when successful, buffer new data, when unsuccessful,
-        buffer at least part of the new data
+        data won't fit free space, but are smaller than allocated buffer - try
+        to write what is buffered, when successful, buffer new data, when
+        unsuccessful, buffer at least part of the new data
       }
         BytesWritten := WriteOut(fMemory^,fUsed);
         If BytesWritten < fUsed then
           begin
             // only part of the buffered data was written, buffer at least part of new data
-            ShiftBuffer(BytesWritten);
+            ShiftBuffer(BytesWritten);  // shift buffer also moves fStartPos
             If Size <= (fSize - fUsed) then
               begin
                 // whole new data will now fit into free space - buffer them
@@ -433,17 +538,21 @@ If Size > 0 then
             // all buffered data were written, buffer new data
             Move(Buffer,fMemory^,Size);
             fUsed := Size;
+            If fStartPos < 0 then
+              fStartPos := SeekInternal(0,soCurrent)
+            else
+              fStartPos := fStartPos + BytesWritten;
             Result := Size;
           end;
       end
     else
       begin
       {
-        data won't fit free space and are larger than allocated buffer - if nothing
-        is buffered, do direct writethrough of the new data, if something is in the
-        buffer, try to write buffered data and then, when successful, directly write
-        out the new data, if write of all buffered data was unsuccessful, buffer
-        part of new data that can fit
+        data won't fit free space and are larger than allocated buffer - if
+        nothing is buffered, do direct writethrough of the new data, if
+        something is in the buffer, try to write buffered data and then, when
+        successful, directly write out the new data, if write of all buffered
+        data was unsuccessful, buffer part of new data that can fit
       }
         If fUsed > 0 then
           begin
@@ -451,7 +560,7 @@ If Size > 0 then
             If BytesWritten < fUsed then
               begin
                 // only part of the buffered data was written...
-                ShiftBuffer(BytesWritten);
+                ShiftBuffer(BytesWritten);  // manages fStartPos
                 // ...buffer part of new data
                 BytesToWrite := fSize - fUsed;
               {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
@@ -464,6 +573,7 @@ If Size > 0 then
               begin
                 // all buffered data were written
                 fUsed := 0;
+                fStartPos := Low(Int64);
                 Result := WriteOut(Buffer,Size);
               end;
           end
@@ -473,10 +583,12 @@ If Size > 0 then
     If fUsed >= fSize then
       begin
         BytesWritten := WriteOut(fMemory^,fSize);
-        If BytesWritten < fSize then
-          ShiftBuffer(BytesWritten)
-        else
-          fUsed := 0
+        If BytesWritten >= fSize then
+          begin
+            fUsed := 0;
+            fStartPos := Low(Int64);
+          end
+        else ShiftBuffer(BytesWritten);
       end;
   end
 else Result := 0;
@@ -491,6 +603,7 @@ fSize := LS_WRITER_BUFF_SIZE;
 GetIntegerNamedValue(Params,'TBufferLayerWriter.Size',fSize);
 GetMem(fMemory,fSize);
 fUsed := 0;
+fStartPos := Low(Int64);
 end;
 
 //------------------------------------------------------------------------------
@@ -532,10 +645,14 @@ end;
 procedure TBufferLayerWriter.Flush;
 begin
 inherited;
-If fActive and (fUsed > 0) then
-  If WriteOut(fMemory^,fUsed) <> fUsed then
-    raise EWriteError.Create('TBufferLayerWriter.Flush: Failed to flush all buffered data.');
-fUsed := 0;
+If fActive then
+  begin
+    If fUsed > 0 then
+      If WriteOut(fMemory^,fUsed) <> fUsed then
+        raise EWriteError.Create('TBufferLayerWriter.Flush: Failed to flush all buffered data.');
+    fUsed := 0;
+    fStartPos := Low(Int64);
+  end;
 end;
 
 //------------------------------------------------------------------------------
@@ -543,6 +660,54 @@ end;
 procedure TBufferLayerWriter.Final;
 begin
 Flush;
+end;
+
+//------------------------------------------------------------------------------
+
+Function TBufferLayerWriter.SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64;
+
+  Function FlushAndSeek(const Offset: Int64; Origin: TSeekOrigin): Int64;
+  begin
+    Flush;
+    Result := inherited SeekInternal(Offset,Origin);
+  end;
+
+begin
+If fActive and (fUsed <> 0) and (fStartPos >= 0) then
+  case Origin of
+    soBeginning:; (*If (Offset >= fStartPos) and (Offset < (fStartPos + fUsed)) then
+                    begin
+                      // seek into buffer
+                      fUsed := fUsed  - (Offset - fStartPos);
+                      fOffset := fOffset + LongInt(Offset - fStartPos);
+                      fStartPos := Offset;
+                      Result := Offset;
+                    end
+                  // seek outside of the buffer                    
+                  else Result := FlushAndSeek(Offset,Origin);*)
+
+    soCurrent:    ;(*If Offset = 0 then
+                    // seek to current position (start of buffer)
+                    Result := fStartPos
+                  else If (Offset > 0) and (Offset < fUsed) then
+                    begin
+                      // seek into buffer
+                      fUsed := fUsed - Offset;
+                      fOffset := fOffset + LongInt(Offset);
+                      fStartPos := fStartPos + Offset;
+                      Result := StartPos;
+                    end
+                  // seek outside of the buffer
+                  else Result := FlushAndSeek(Offset,Origin);*)
+  {
+    There is no way of knowing where the stream ends in relation to currently
+    buffered data, so flush and do normal seek.
+  }
+    soEnd:        Result := FlushAndSeek(Offset,Origin);
+  else
+    Result := FlushAndSeek(Offset,Origin);
+  end
+else Result := inherited SeekInternal(Offset,Origin);
 end;
 
 {===============================================================================

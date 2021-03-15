@@ -11,6 +11,8 @@
 
     Stops reads, writes and, depending on settings, seeks so they are not
     propagated to the next layer.
+    Note that internal seeking is affected the same way as normal seeking,
+    except that it is always silent (does not raise an exception).
 
   Version 1.0 beta 2 (2021-03-14)
 
@@ -101,6 +103,7 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
+    Function SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
     property SilentStop: Boolean read fSilentStop write fSilentStop;
     property ReadZeroes: Boolean read fReadZeroes write fReadZeroes;
@@ -128,6 +131,7 @@ type
   public
     class Function LayerObjectProperties: TLSLayerObjectProperties; override;
     class Function LayerObjectParams: TLSLayerObjectParams; override;
+    Function SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64; override;
     property StopSeek: Boolean read fStopSeek write fStopSeek;
     property SilentStop: Boolean read fSilentStop write fSilentStop;
     property WriteSink: Boolean read fWriteSink write fWriteSink;
@@ -231,6 +235,16 @@ Result[2] := LayerObjectParam('TStopLayerReader.ReadZeroes',nvtBool,[loprConstru
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
+//------------------------------------------------------------------------------
+
+Function TStopLayerReader.SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+If fStopSeek then
+  Result := 0
+else
+  Result := inherited SeekInternal(Offset,Origin);
+end;
+
 {===============================================================================
 --------------------------------------------------------------------------------
                                 TStopLayerWriter
@@ -312,6 +326,16 @@ Result[0] := LayerObjectParam('TStopLayerWriter.StopSeek',nvtBool,[loprConstruct
 Result[1] := LayerObjectParam('TStopLayerWriter.SilentStop',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 Result[2] := LayerObjectParam('TStopLayerWriter.WriteSink',nvtBool,[loprConstructor,loprInitializer,loprUpdater]);
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TStopLayerWriter.SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+If fStopSeek then
+  Result := 0
+else
+  Result := inherited SeekInternal(Offset,Origin);
 end;
 
 {===============================================================================

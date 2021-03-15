@@ -395,9 +395,10 @@ type
 type
   TLSLayerObjectBase = class(TCustomObject)
   protected
-    fCounterpart:     TLSLayerObjectBase; // the other object in layer pair
-    fSeekConnection:  TLSLayerObjectSeekConnection;
-    fActive:          Boolean;
+    fCounterpart:           TLSLayerObjectBase; // the other object in layer pair
+    fSeekConnection:        TLSLayerObjectSeekConnection;
+    fSeekInternConnection:  TLSLayerObjectSeekConnection;
+    fActive:                Boolean;
     procedure SetCounterpart(Value: TLSLayerObjectBase); virtual;
     procedure SetActive(Value: Boolean); virtual;
     Function SeekActive(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual; abstract;
@@ -457,9 +458,28 @@ type
     procedure Flush; virtual;
     procedure Final; virtual;
     Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
+  {
+    Internal seeking is used by internal workings of individual layer objects.
+    It must be executed only from within read or write processing.
+
+    Each object is responsible for proper implementation of internal seeking,
+    but usually the default implementation (passthrough of the seek request) is
+    sufficient.
+    As this system might be essential for proper working of some layers, a great
+    care must be taken when implementing it, so one layer does not adversely
+    affect working of other layers.
+
+    Note that internal seek is NOT affected by layer active state.
+    Also remember that the internal seek is always executed in read or write
+    mode of the layered stream, never in seek mode, and always by the respective
+    layer objects (write mode - writers, read mode - readers), so it should be
+    separate from general seeking.
+  }
+    Function SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
     property Counterpart: TLSLayerObjectBase read fCounterpart write SetCounterpart;
     property Active: Boolean read fActive write SetActive;
     property SeekConnection: TLSLayerObjectSeekConnection read fSeekConnection write fSeekConnection;
+    property SeekInternalConnection: TLSLayerObjectSeekConnection read fSeekInternConnection write fSeekInternConnection;
   end;
 
   TLSLayerObjectClass = class of TLSLayerObjectBase;
@@ -724,6 +744,16 @@ else
   Result := SeekOut(Offset,Origin);
 end;
 
+//------------------------------------------------------------------------------
+
+Function TLSLayerObjectBase.SeekInternal(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Result := 0;
+If Assigned(fSeekInternConnection) then
+  Result := fSeekInternConnection(Offset,Origin)
+else
+  ELSInvalidConnection.Create('TLSLayerObjectBase.SeekInternal: Seek-internal connection not assigned.');
+end;
 
 {===============================================================================
 --------------------------------------------------------------------------------

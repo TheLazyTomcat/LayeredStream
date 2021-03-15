@@ -260,10 +260,15 @@ type
     fLayers:      array of TLSLayer;
     Function GetLayerCount: Integer;
     Function GetLayer(Index: Integer): TLSLayer;
+    Function GetPosition: Int64;
+    procedure SetPosition(Value: Int64);
   protected
+    Function GetSize: Int64; override;
+    procedure SetSize(const Value: Int64); override;
     Function ChangeMode(NewMode: TLayeredStreamMode): TLayeredStreamMode; virtual;  // returns previous mode
     Function SeekIn(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
     Function SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
+    Function SeekInternalOut(const Offset: Int64; Origin: TSeekOrigin): Int64; virtual;
     Function ReadIn(out Buffer; Size: LongInt): LongInt; virtual;
     Function ReadOut(out Buffer; Size: LongInt): LongInt; virtual;
     Function WriteIn(const Buffer; Size: LongInt): LongInt; virtual;
@@ -374,6 +379,8 @@ type
     Function Read(var Buffer; Count: LongInt): LongInt; override;
     Function Write(const Buffer; Count: LongInt): LongInt; override;
     // properties
+    property Position: Int64 read GetPosition write SetPosition;
+    property Size: Int64 read GetSize write SetSize;
     property Mode: TLayeredStreamMode read fMode;
     property Target: TStream read fTarget;
     property OwnsTarget: Boolean read fOwnsTarget write fOwnsTarget;
@@ -467,7 +474,9 @@ uses
   LayeredStream_SHA3Layer,
   LayeredStream_CITYLayer,
   // compression layers
-  LayeredStream_ZLIBLayer;
+  LayeredStream_ZLIBLayer,
+  // other layers
+  LayeredStream_DebugLayer;
 
 {$IFDEF FPC_DisableWarns}
   {$DEFINE FPCDWM}
@@ -702,9 +711,69 @@ else
   raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.GetLayer: Index (%d) out of bounds.',[Index]);
 end;
 
+//------------------------------------------------------------------------------
+
+Function TLayeredStream.GetPosition: Int64;
+begin
+If Length(fLayers) > 0 then
+  case fMode of
+    lsmRead:  Result := fLayers[HighIndex].Reader.SeekInternal(0,soCurrent);
+    lsmWrite: Result := fLayers[HighIndex].Writer.SeekInternal(0,soCurrent);
+  else
+   {lsmUndefined,lsmSeek}
+    Result := SeekInternalOut(0,soCurrent);
+  end
+else Result := SeekInternalOut(0,soCurrent);
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.SetPosition(Value: Int64);
+begin
+If Length(fLayers) > 0 then
+  case fMode of
+    lsmRead:  fLayers[HighIndex].Reader.SeekInternal(Value,soBeginning);
+    lsmWrite: fLayers[HighIndex].Writer.SeekInternal(Value,soBeginning);
+  else
+   {lsmUndefined,lsmSeek}
+    SeekInternalOut(Value,soBeginning);
+  end
+else SeekInternalOut(Value,soBeginning);
+end;
+
 {-------------------------------------------------------------------------------
     TLayeredStream - protected methods
 -------------------------------------------------------------------------------}
+
+Function TLayeredStream.GetSize: Int64;
+var
+  OldPos: Int64;
+begin
+OldPos := GetPosition;
+try
+  If Length(fLayers) > 0 then
+    case fMode of
+      lsmRead:  Result := fLayers[HighIndex].Reader.SeekInternal(0,soEnd);
+      lsmWrite: Result := fLayers[HighIndex].Writer.SeekInternal(0,soEnd);
+    else
+     {lsmUndefined,lsmSeek}
+      Result := SeekInternalOut(0,soEnd);
+    end
+  else Result := SeekInternalOut(0,soEnd);
+finally
+  SetPosition(OldPos);
+end;
+end;
+
+//------------------------------------------------------------------------------
+
+procedure TLayeredStream.SetSize(const Value: Int64);
+begin
+Flush;
+fTarget.Size := Value;
+end;
+
+//------------------------------------------------------------------------------
 
 Function TLayeredStream.ChangeMode(NewMode: TLayeredStreamMode): TLayeredStreamMode;
 begin
@@ -739,6 +808,13 @@ end;
 //------------------------------------------------------------------------------
 
 Function TLayeredStream.SeekOut(const Offset: Int64; Origin: TSeekOrigin): Int64;
+begin
+Result := fTarget.Seek(Offset,Origin);
+end;
+
+//------------------------------------------------------------------------------
+
+Function TLayeredStream.SeekInternalOut(const Offset: Int64; Origin: TSeekOrigin): Int64;
 begin
 Result := fTarget.Seek(Offset,Origin);
 end;
@@ -821,23 +897,29 @@ If CheckIndex(Index) then
     If Index > LowIndex then
       begin
         fLayers[Index].Reader.SeekConnection := fLayers[Pred(Index)].Reader.SeekIn;
+        fLayers[Index].Reader.SeekInternalConnection := fLayers[Pred(Index)].Reader.SeekInternal;
         fLayers[Index].Reader.ReadConnection := fLayers[Pred(Index)].Reader.ReadIn;
         fLayers[Index].Writer.SeekConnection := fLayers[Pred(Index)].Writer.SeekIn;
+        fLayers[Index].Writer.SeekInternalConnection := fLayers[Pred(Index)].Writer.SeekInternal;
         fLayers[Index].Writer.WriteConnection := fLayers[Pred(Index)].Writer.WriteIn;
       end
     else
       begin
         fLayers[Index].Reader.SeekConnection := Self.SeekOut;
         fLayers[Index].Reader.ReadConnection := Self.ReadOut;
+        fLayers[Index].Reader.SeekInternalConnection := Self.SeekInternalOut;
         fLayers[Index].Writer.SeekConnection := Self.SeekOut;
         fLayers[Index].Writer.WriteConnection := Self.WriteOut;
+        fLayers[Index].Writer.SeekInternalConnection := Self.SeekInternalOut;
       end;
     // connect layer input
     If Index < HighIndex then
       begin
         fLayers[Succ(Index)].Reader.SeekConnection := fLayers[Index].Reader.SeekIn;
+        fLayers[Succ(Index)].Reader.SeekInternalConnection := fLayers[Index].Reader.SeekInternal;
         fLayers[Succ(Index)].Reader.ReadConnection := fLayers[Index].Reader.ReadIn;
         fLayers[Succ(Index)].Writer.SeekConnection := fLayers[Index].Writer.SeekIn;
+        fLayers[Succ(Index)].Writer.SeekInternalConnection := fLayers[Index].Writer.SeekInternal;        
         fLayers[Succ(Index)].Writer.WriteConnection := fLayers[Index].Writer.WriteIn;
       end;
   end
@@ -852,14 +934,18 @@ If CheckIndex(Index) then
   begin
     If (Index < HighIndex) and Assigned(fLayers[Succ(Index)].Reader) and Assigned(fLayers[Succ(Index)].Writer) then
       begin
+        fLayers[Succ(Index)].Reader.Seekconnection := fLayers[Index].Reader.SeekConnection;
+        fLayers[Succ(Index)].Reader.SeekInternalConnection := fLayers[Index].Reader.SeekInternalConnection;
         fLayers[Succ(Index)].Reader.ReadConnection := fLayers[Index].Reader.ReadConnection;
-        fLayers[Succ(Index)].Reader.Seekconnection := fLayers[Index].Reader.Seekconnection;
+        fLayers[Succ(Index)].Writer.Seekconnection := fLayers[Index].Writer.SeekConnection;
+        fLayers[Succ(Index)].Reader.SeekInternalConnection := fLayers[Index].Reader.SeekInternalConnection;
         fLayers[Succ(Index)].Writer.WriteConnection := fLayers[Index].Writer.WriteConnection;
-        fLayers[Succ(Index)].Writer.Seekconnection := fLayers[Index].Writer.Seekconnection;
       end;
     fLayers[Index].Reader.SeekConnection := nil;
+    fLayers[Index].Reader.SeekInternalConnection := nil;
     fLayers[Index].Reader.ReadConnection := nil;
     fLayers[Index].Writer.SeekConnection := nil;
+    fLayers[Index].Writer.SeekInternalConnection := nil;    
     fLayers[Index].Writer.WriteConnection := nil;
   end
 else raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.ConnectLayer: Index (%d) out of bounds.',[Index]);

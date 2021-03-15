@@ -201,6 +201,9 @@ type
 
 implementation
 
+uses
+  LayeredStream;
+
 {$IFDEF FPC_DisableWarns}
   {$DEFINE FPCDWM}
   {$DEFINE W5024:={$WARN 5024 OFF}} // Parameter "$1" not used
@@ -584,5 +587,12 @@ Result[0] := LayerObjectParam('TDebugHighLayerWriter.Size',nvtInteger,[loprConst
 LayerObjectParamsJoin(Result,inherited LayerObjectParams);
 end;
 
+{===============================================================================
+    Layer registration
+===============================================================================}
+
+initialization
+  RegisterLayer('LSRL_DebugLow',TDebugLowLayerReader,TDebugLowLayerWriter);
+  RegisterLayer('LSRL_DebugHigh',TDebugHighLayerReader,TDebugHighLayerWriter);
 
 end.
