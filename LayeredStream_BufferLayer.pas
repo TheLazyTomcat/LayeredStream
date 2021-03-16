@@ -108,8 +108,9 @@ type
     property Used: LongInt read fUsed;
     property Offset: LongInt read fOffset;
   {
-    StartPos is a position in the underlaying stream where the current buffered
-    data starts.
+    StartPos is a position in the underlying stream where the currently
+    buffered data starts (all data from the start of the buffer, not just from
+    offset - it is threfore equivalent to position before last read).
     If nothing is buffered, it will be set to a negative value.
   }
     property StartPos: Int64 read fStartPos;
@@ -146,8 +147,8 @@ type
     property Size: LongInt read fSize;
     property Used: LongInt read fUsed;
   {
-    StartPos is a position in the underlaying stream where the current buffered
-    data will be written.
+    StartPos is a position in the underlying stream where the currently
+    buffered data will be written on next write.
     If nothing is buffered, it will be set to a negative value.
   }    
     property StartPos: Int64 read fStartPos;    
@@ -215,18 +216,14 @@ If Size > 0 then
         Move(Pointer(PtrUInt(fMemory) + PtrUInt(fOffset))^,Buffer,Size);
       {$IFDEF FPCDWM}{$POP}{$ENDIF}
         fUsed := fUsed - Size;
-        If fUsed <> 0 then
-          begin
-            // some data are left in the buffer
-            fOffset := fOffset + Size;
-            fStartPos := fStartPos + Size; 
-          end
-        else
+        If fUsed <= 0 then
           begin
             // buffer is now empty
             fOffset := 0;
             fStartPos := Low(Int64);
-          end;
+          end
+        // some data are left in the buffer
+        else fOffset := fOffset + Size;
         Result := Size;
       end
     else If Size <= fSize then
@@ -261,16 +258,14 @@ If Size > 0 then
             Move(fMemory^,Pointer(PtrUInt(@Buffer) + PtrUInt(BytesCopied))^,BytesToCopy);
           {$IFDEF FPCDWM}{$POP}{$ENDIF}
             fUsed := BytesRead - BytesToCopy;
-            If fUSed <> 0 then
+            If fUsed <= 0 then
               begin
-                fOffset := BytesToCopy;
-                fStartPos := fStartPos + fOffset;
-              end
-            else
-              begin
+                // buffer is empty
                 fOffset := 0;
                 fStartPos := Low(Int64);
-              end;
+              end
+            // buffer still contains data
+            else fOffset := BytesToCopy;
             Result := BytesCopied + BytesToCopy;
           end
         else
@@ -399,12 +394,11 @@ Function TBufferLayerReader.SeekInternal(const Offset: Int64; Origin: TSeekOrigi
 begin
 If fActive and (fUsed <> 0) and (fStartPos >= 0) then
   case Origin of
-    soBeginning:  If (Offset >= fStartPos) and (Offset < (fStartPos + fUsed)) then
+    soBeginning:  If (Offset >= fStartPos) and (Offset < (fStartPos + fOffset + fUsed)) then
                     begin
                       // seek into buffer
-                      fUsed := fUsed  - (Offset - fStartPos);
-                      fOffset := fOffset + LongInt(Offset - fStartPos);
-                      fStartPos := Offset;
+                      fUsed := (fOffset + fUsed) - LongInt(Offset - fStartPos);
+                      fOffset := LongInt(Offset - fStartPos);
                       Result := Offset;
                     end
                   // seek outside of the buffer                    
@@ -412,14 +406,13 @@ If fActive and (fUsed <> 0) and (fStartPos >= 0) then
 
     soCurrent:    If Offset = 0 then
                     // seek to current position (start of buffer)
-                    Result := fStartPos
-                  else If (Offset > 0) and (Offset < fUsed) then
+                    Result := fStartPos + Int64(fOffset)
+                  else If (Offset >= -fOffset) and (Offset < fUsed) then
                     begin
                       // seek into buffer
                       fUsed := fUsed - Offset;
                       fOffset := fOffset + LongInt(Offset);
-                      fStartPos := fStartPos + Offset;
-                      Result := StartPos;
+                      Result := StartPos + fOffset;
                     end
                   // seek outside of the buffer
                   else Result := FlushAndSeek(Offset,Origin);
@@ -431,7 +424,7 @@ If fActive and (fUsed <> 0) and (fStartPos >= 0) then
   else
     Result := FlushAndSeek(Offset,Origin);
   end
-else Result := inherited SeekInternal(Offset,Origin);
+else Result := inherited SeekInternal(Offset,Origin); // no flush needed
 end;
 
 
@@ -537,7 +530,7 @@ If Size > 0 then
           begin
             // all buffered data were written, buffer new data
             Move(Buffer,fMemory^,Size);
-            fUsed := Size;
+            fUsed := Size;  // size is always non-zero here
             If fStartPos < 0 then
               fStartPos := SeekInternal(0,soCurrent)
             else
@@ -560,7 +553,7 @@ If Size > 0 then
             If BytesWritten < fUsed then
               begin
                 // only part of the buffered data was written...
-                ShiftBuffer(BytesWritten);  // manages fStartPos
+                ShiftBuffer(BytesWritten);  // changes fStartPos
                 // ...buffer part of new data
                 BytesToWrite := fSize - fUsed;
               {$IFDEF FPCDWM}{$PUSH}W4055{$ENDIF}
@@ -585,10 +578,11 @@ If Size > 0 then
         BytesWritten := WriteOut(fMemory^,fSize);
         If BytesWritten >= fSize then
           begin
+            // entire buffer was written
             fUsed := 0;
             fStartPos := Low(Int64);
           end
-        else ShiftBuffer(BytesWritten);
+        else ShiftBuffer(BytesWritten); // changes fStartPos
       end;
   end
 else Result := 0;
@@ -675,30 +669,25 @@ Function TBufferLayerWriter.SeekInternal(const Offset: Int64; Origin: TSeekOrigi
 begin
 If fActive and (fUsed <> 0) and (fStartPos >= 0) then
   case Origin of
-    soBeginning:; (*If (Offset >= fStartPos) and (Offset < (fStartPos + fUsed)) then
-                    begin
-                      // seek into buffer
-                      fUsed := fUsed  - (Offset - fStartPos);
-                      fOffset := fOffset + LongInt(Offset - fStartPos);
-                      fStartPos := Offset;
-                      Result := Offset;
-                    end
-                  // seek outside of the buffer                    
-                  else Result := FlushAndSeek(Offset,Origin);*)
+    soBeginning:  If Offset = fStartPos + fUsed then
+                    // seek to current position (end of buffer), do nothing
+                    Result := Offset
+                  else
+                  {
+                    Seeking outside of the buffered data is clear enough - flush
+                    and the pass seek request further.
+                    Why not to seek into the buffer is more complex - as this
+                    is writer, everything buffered is actually supposed to be
+                    already written into the underlying stream. And because
+                    seek into the buffer would inevitably discard some data, it
+                    cannot be allowed.
+                  }
+                    Result := FlushAndSeek(Offset,Origin);
 
-    soCurrent:    ;(*If Offset = 0 then
-                    // seek to current position (start of buffer)
-                    Result := fStartPos
-                  else If (Offset > 0) and (Offset < fUsed) then
-                    begin
-                      // seek into buffer
-                      fUsed := fUsed - Offset;
-                      fOffset := fOffset + LongInt(Offset);
-                      fStartPos := fStartPos + Offset;
-                      Result := StartPos;
-                    end
-                  // seek outside of the buffer
-                  else Result := FlushAndSeek(Offset,Origin);*)
+    soCurrent:    If Offset = 0 then
+                    Result := fStartPos + fUsed // seek to current position
+                  else
+                    Result := FlushAndSeek(Offset,Origin);
   {
     There is no way of knowing where the stream ends in relation to currently
     buffered data, so flush and do normal seek.
