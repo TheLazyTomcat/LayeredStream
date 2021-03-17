@@ -293,8 +293,11 @@ type
     Function Find(const LayerName: String; out Index: Integer): Boolean; overload; virtual;
     Function Find(LayerObjectClass: TLSLayerObjectClass; out Index: Integer): Boolean; overload; virtual;
     Function Find(LayerObject: TLSLayerObjectBase; out Index: Integer): Boolean; overload; virtual;
-    Function Add(LayerConstruct: TLSLayerConstruct): Integer; virtual;  // use function LayerConstruct to fill the argument
-    procedure Insert(Index: Integer; LayerConstruct: TLSLayerConstruct); virtual;
+    // use function LayerConstruct to fill the LayerConstruct arguments
+    Function Add(LayerConstruct: TLSLayerConstruct): Integer; overload; virtual;
+    Function Add(const LayerName, RegisteredLayerID: String): Integer; overload; virtual;
+    procedure Insert(Index: Integer; LayerConstruct: TLSLayerConstruct); overload; virtual;
+    procedure Insert(Index: Integer; const LayerName, RegisteredLayerID: String); overload; virtual;
     Function Remove(const LayerName: String): Integer; overload; virtual;
     Function Remove(LayerObjectClass: TLSLayerObjectClass): Integer; overload; virtual;
     Function Remove(LayerObject: TLSLayerObjectBase): Integer; overload; virtual;   
@@ -1121,6 +1124,13 @@ If not Find(LayerConstruct.Name,Result) then
 else raise ELSDuplicitLayer.CreateFmt('TLayeredStream.Add: Layer with the name "%s" already exists.',[LayerConstruct.Name]);
 end;
 
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+Function TLayeredStream.Add(const LayerName, RegisteredLayerID: String): Integer;
+begin
+Result := Add(LayerConstruct(LayerName,RegisteredLayerID));
+end;
+
 //------------------------------------------------------------------------------
 
 procedure TLayeredStream.Insert(Index: Integer; LayerConstruct: TLSLayerConstruct);
@@ -1151,6 +1161,13 @@ If not Find(LayerConstruct.Name,i) then
       raise ELSIndexOutOfBounds.CreateFmt('TLayeredStream.Insert: Index (%d) out of bounds.',[Index]);
   end
 else raise ELSDuplicitLayer.CreateFmt('TLayeredStream.Insert: Layer with the name "%s" already exists.',[LayerConstruct.Name]);
+end;
+
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+
+procedure TLayeredStream.Insert(Index: Integer; const LayerName, RegisteredLayerID: String);
+begin
+Insert(Index,LayerConstruct(LayerName,RegisteredLAyerID));
 end;
 
 //------------------------------------------------------------------------------
